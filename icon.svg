@@ -1,5 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="アプリの雛形">
-  <rect width="512" height="512" rx="108" fill="#151a2e"/>
-  <rect x="96" y="96" width="200" height="200" rx="28" fill="#4cc9f0"/>
-  <rect x="216" y="216" width="200" height="200" rx="28" fill="#ffd166"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="ふわりバード">
+  <rect width="512" height="512" rx="108" fill="#70c5ce"/>
+  <rect x="352" y="0" width="90" height="190" fill="#5fb65a"/><rect x="342" y="160" width="110" height="40" fill="#4fa34a"/>
+  <rect x="352" y="340" width="90" height="172" fill="#5fb65a"/><rect x="342" y="330" width="110" height="40" fill="#4fa34a"/>
+  <circle cx="220" cy="270" r="96" fill="#ffd93d" stroke="#c99700" stroke-width="10"/>
+  <ellipse cx="190" cy="294" rx="48" ry="28" fill="#f4b41a" transform="rotate(-17 190 294)"/>
+  <circle cx="256" cy="236" r="26" fill="#fff"/><circle cx="266" cy="236" r="13" fill="#222"/>
+  <path d="M308 262 L372 286 L308 310 Z" fill="#f26b3a"/>
 </svg>

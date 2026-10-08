@@ -2,31 +2,45 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>アプリの雛形</title>
-<meta name="description" content="ビルドなしで動くアプリの雛形">
-<meta name="theme-color" content="#151a2e">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>ふわりバード</title>
+<meta name="description" content="タップで羽ばたいて、柱のすき間をくぐり抜ける一発アクション">
+<meta name="theme-color" content="#70c5ce">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
 
 <div id="app">
-  <header id="topbar">
-    <h1 class="title">アプリの雛形</h1>
-    <div class="topbar-actions">
-      <button type="button" id="btnAction" class="btn btn-primary">ためす</button>
-    </div>
-  </header>
+  <canvas id="game" width="430" height="932"></canvas>
 
-  <main id="stage">
-    <p class="lead">ここにアプリを作る。</p>
-    <p class="result" id="result">—</p>
-    <p class="note">
-      ロジックは <code>src/core.js</code> に、画面は <code>src/app.js</code> に書く。<br>
-      <code>npm test</code> でロジックを、<code>npm run test:ui</code> で画面を確かめる。
-    </p>
-  </main>
+  <button type="button" id="btnMute" class="mute" aria-label="サウンド切り替え">🔊</button>
+
+  <section id="vStart" class="sheet on">
+    <h1 class="logo">ふわりバード</h1>
+    <p class="hint">あそぶモードをえらんでね</p>
+    <button type="button" id="btnClassic" class="btn btn-mode">
+      <span class="mode-name">クラシック</span>
+      <span class="mode-sub">むかしながらの一発勝負</span>
+      <span class="mode-best" id="bestClassic">ベスト 0</span>
+    </button>
+    <button type="button" id="btnAdventure" class="btn btn-mode btn-adv">
+      <span class="mode-name">アドベンチャー</span>
+      <span class="mode-sub">ハート3つ＆アイテムつき！</span>
+      <span class="mode-best" id="bestAdventure">ベスト 0</span>
+    </button>
+  </section>
+
+  <section id="vOver" class="sheet">
+    <h2 class="over-title">ゲームオーバー</h2>
+    <p class="over-mode" id="overMode"></p>
+    <p class="over-score"><span id="finalScore">0</span><small>てん</small></p>
+    <p class="over-best" id="overBest"></p>
+    <button type="button" id="btnRetry" class="btn btn-primary">もう一度あそぶ</button>
+    <button type="button" id="btnMenu" class="btn">モード選択へ</button>
+  </section>
 </div>
 
 <script src="./core.js"></script>

@@ -1,131 +1,122 @@
-/* 見た目。色は :root にまとめ、明るい画面と暗い画面の両方を用意する。 */
+/* iPhone 16 Plus (430 x 932pt) 決め打ち。色は :root にまとめる */
 
 :root {
-  --bg: #10142a;
-  --bg-2: #171d3a;
-  --line: #2e3868;
-  --text: #eef1ff;
-  --muted: #9aa3cf;
-  --accent: #ffd166;
-  --accent-ink: #2a2200;
-  color-scheme: dark;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f3f5fb;
-    --bg-2: #ffffff;
-    --line: #dbe0f0;
-    --text: #1b1f36;
-    --muted: #666e93;
-    --accent: #ffb703;
-    --accent-ink: #2a1f00;
-    color-scheme: light;
-  }
+  --sky: #70c5ce;
+  --ink: #3b2f2a;
+  --paper: rgba(255, 250, 238, .94);
+  --accent: #ffb703;
+  --accent-ink: #2a1f00;
+  --adv: #c0392b;
+  --muted: #7a6a5e;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
+/* 根っこを 100vh にして position: relative。iOS のホーム画面起動で下に帯が出るのを防ぐ */
 html, body {
   margin: 0;
-  height: 100%;
+  height: 100vh;
+  position: relative;
   overflow: hidden;
   overscroll-behavior: none;
+  background: var(--sky);
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI",
-               system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
+  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", system-ui, -apple-system, sans-serif;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
-#app {
-  display: flex;
-  flex-direction: column;
-  height: 100dvh;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+#app { position: absolute; inset: 0; }
+
+#game {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
 }
 
-#topbar {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 10px 14px;
-  background: var(--bg-2);
-  border-bottom: 1px solid var(--line);
-}
-
-.title {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: .04em;
-}
-
-.topbar-actions { margin-left: auto; }
-
-.btn {
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 8px 14px;
+.mute {
+  position: absolute;
+  top: calc(var(--safe-top) + 8px);
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 22px;
+  background: rgba(0, 0, 0, .25);
+  font-size: 20px;
+  line-height: 44px;
+  padding: 0;
   cursor: pointer;
-  transition: transform .08s ease, border-color .15s ease;
 }
 
-.btn:hover { border-color: var(--muted); }
-.btn:active { transform: translateY(1px); }
-
-.btn-primary {
-  background: var(--accent);
-  border-color: transparent;
-  color: var(--accent-ink);
-}
-
-#stage {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
+/* 最初と終わりの札。出ていないときは何も受けない */
+.sheet {
+  position: absolute;
+  inset: 0;
+  display: none;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 14px;
-  padding: 24px;
+  background: rgba(20, 40, 60, .38);
   text-align: center;
+  padding: 300px 28px 0;   /* 待っている鳥 (y≒373) より下に置く */
 }
+.sheet.on { display: flex; }
 
-.lead { margin: 0; font-size: 18px; font-weight: 700; }
+.logo {
+  margin: 0 0 4px;
+  font-size: 44px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  color: #fff;
+  -webkit-text-stroke: 7px rgba(60, 40, 30, .85);
+  paint-order: stroke fill;
+}
+.hint { margin: 0 0 6px; color: #fff; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
 
-.result {
-  margin: 0;
-  font-size: 32px;
+.btn {
+  font: inherit;
+  font-size: 16px;
   font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--accent);
+  color: var(--ink);
+  background: var(--paper);
+  border: 0;
+  border-radius: 16px;
+  padding: 14px 24px;
+  min-width: 240px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(60, 40, 30, .35);
 }
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(60, 40, 30, .35); }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
 
-.note {
-  margin: 0;
-  max-width: 34em;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.9;
-}
+.btn-mode { display: flex; flex-direction: column; gap: 3px; width: 280px; }
+.btn-mode .mode-name { font-size: 20px; }
+.btn-mode .mode-sub { font-size: 12px; font-weight: 600; color: var(--muted); }
+.btn-mode .mode-best { font-size: 12px; font-weight: 800; color: #e67e22; font-variant-numeric: tabular-nums; }
+.btn-adv { background: #ffe4dc; }
+.btn-adv .mode-name { color: var(--adv); }
 
-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: .95em;
-}
+.over-title { margin: 0; font-size: 32px; color: #fff; -webkit-text-stroke: 6px rgba(60, 40, 30, .85); paint-order: stroke fill; }
+.over-mode { margin: 0; color: #fff; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
+.over-score { margin: 0; font-size: 72px; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums;
+  -webkit-text-stroke: 8px rgba(60, 40, 30, .85); paint-order: stroke fill; }
+.over-score small { font-size: 22px; margin-left: 4px; -webkit-text-stroke-width: 5px; }
+.over-best { margin: 0 0 8px; min-height: 1.4em; font-weight: 800; color: #ffe27a; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: .01ms !important; animation: none !important; }
