@@ -808,6 +808,18 @@ async function run() {
       ok(Math.abs(r.scale - Math.min(vw / 430, vh / 932)) < 0.002, `${vw}x${vh}: 縦横の比そのままで拡縮 (${r.scale})`);
       await fc.close();
     }
+    // ホーム画面から開いたとき (standalone) は、窓が足りなくても 100vh まで使う。ここでは窓 = 100vh なので、拡縮は窓どおりのまま
+    {
+      const sc = await browser.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+      await sc.addInitScript(() => { Object.defineProperty(navigator, 'standalone', { get: () => true }); });
+      const sp = await sc.newPage();
+      await sp.goto(URL);
+      await sp.waitForFunction(() => window.__app);
+      await sp.waitForTimeout(300);
+      const k = await sp.evaluate(() => +document.getElementById('app').dataset.scale);
+      ok(Math.abs(k - 1) < 0.002, `ホーム画面 (standalone) の 430x932 は 1 倍 (${k})`);
+      await sc.close();
+    }
 
     // ------------------------------------------------ アイコン (用意していれば)
     section('アイコン');

@@ -6,9 +6,22 @@
   var sky = document.getElementById('sky');
   var vis = null;   // 親の枠が下を切っているときの、見えている範囲 (top, height)
 
+  // ホーム画面から開いたときは、iOS が渡す窓の高さ (innerHeight) が上の安全域ぶん足りない
+  // (実機で 窓873 / 100vh 932)。画面は 932 まで届いているので、100vh も測って大きい方を使う。
+  var standalone = !!navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  function vh100() {
+    var b = document.createElement('div');
+    b.style.cssText = 'position:absolute;left:0;top:0;width:0;height:100vh;visibility:hidden';
+    document.body.appendChild(b);
+    var h = Math.round(b.getBoundingClientRect().height);
+    b.remove();
+    return h || 0;
+  }
+
   function fit() {
     var w = window.innerWidth, h = window.innerHeight, y0 = 0;
-    if (vis && vis.height >= 100) { y0 = Math.max(0, vis.top); h = Math.min(h - y0, vis.height); }
+    if (standalone) h = Math.max(h, vh100());
+    else if (vis && vis.height >= 100) { y0 = Math.max(0, vis.top); h = Math.min(h - y0, vis.height); }
     if (!(w >= 1 && h >= 1)) return;   // 回転中などに 0 が渡ってくる
     var s = Math.min(w / 430, h / 932);
     app.style.transform = 'translate(' + ((w - 430 * s) / 2) + 'px,' + (y0 + (h - 932 * s) / 2) + 'px) scale(' + s + ')';
