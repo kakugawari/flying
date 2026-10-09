@@ -36,7 +36,8 @@ body {
   -webkit-touch-callout: none;
 }
 
-#app { position: absolute; inset: 0; }
+/* 430x932 の舞台。fit.js が、見えている大きさに合わせて縦横の比そのままで拡縮する */
+#app { position: absolute; left: 0; top: 0; width: 430px; height: 932px; transform-origin: 0 0; overflow: hidden; }
 
 #sky {
   position: absolute;

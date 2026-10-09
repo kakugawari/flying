@@ -790,6 +790,25 @@ async function run() {
     ok(await nsPage.evaluate(() => document.getElementById('vOver').classList.contains('on')), '保存できなくても遊べて、終わりの札が出る');
     await noStore.close();
 
+    // ------------------------------------------------ 見えている高さが足りないとき (Safari の帯・アプリ内の枠)
+    section('画面に合わせる');
+    for (const [vw, vh] of [[430, 932], [430, 873], [430, 799]]) {
+      const fc = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+      const fp = await fc.newPage();
+      await fp.goto(URL);
+      await fp.waitForFunction(() => window.__app);
+      await fp.waitForTimeout(300);
+      const r = await fp.evaluate(() => {
+        const a = document.getElementById('app').getBoundingClientRect();
+        const c = document.getElementById('game').getBoundingClientRect();
+        return { top: a.top, bottom: a.bottom, left: a.left, right: a.right, cb: c.bottom, scale: +document.getElementById('app').dataset.scale };
+      });
+      ok(r.bottom <= vh + 0.5 && r.top >= -0.5, `${vw}x${vh}: 床まで画面に収まる (舞台 ${Math.round(r.top)}〜${Math.round(r.bottom)})`);
+      ok(r.right <= vw + 0.5 && r.left >= -0.5, `${vw}x${vh}: 横にはみ出さない (${Math.round(r.left)}〜${Math.round(r.right)})`);
+      ok(Math.abs(r.scale - Math.min(vw / 430, vh / 932)) < 0.002, `${vw}x${vh}: 縦横の比そのままで拡縮 (${r.scale})`);
+      await fc.close();
+    }
+
     // ------------------------------------------------ アイコン (用意していれば)
     section('アイコン');
     const desk = await browser.newPage();
