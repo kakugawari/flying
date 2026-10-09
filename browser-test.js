@@ -803,6 +803,23 @@ async function run() {
       ok(apple.endsWith('.png'), `ホーム画面用アイコンが PNG (${apple})`);
       const res = await desk.request.get(URL + apple.replace('./', ''));
       ok(res.ok(), `${apple} が配信される`);
+      // 絵の中身: 180x180・四隅が不透明 (iOS は透明を黒で埋める)・黄の鳥と青い空が入っている
+      const px = await desk.evaluate(async (u) => {
+        const im = new Image(); im.src = u; await im.decode();
+        const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+        const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+        const d = g.getImageData(0, 0, c.width, c.height).data;
+        let yellow = 0, blue = 0, minA = 255;
+        for (let i = 0; i < d.length; i += 4) {
+          minA = Math.min(minA, d[i + 3]);
+          if (d[i] > 220 && d[i + 1] > 180 && d[i + 2] < 120) yellow++;
+          if (d[i + 2] > 180 && d[i] < 140) blue++;
+        }
+        return { w: c.width, h: c.height, minA, yellow, blue };
+      }, URL + apple.replace('./', ''));
+      ok(px.w === 180 && px.h === 180, `ホーム画面用アイコンは 180x180 (${px.w}x${px.h})`);
+      ok(px.minA === 255, `アイコンに透明な画素が無い (最小 alpha ${px.minA})`);
+      ok(px.yellow > 1500 && px.blue > 3000, `アイコンに黄の鳥と青い空が入っている (黄 ${px.yellow} / 青 ${px.blue} 画素)`);
     }
 
     // ------------------------------------------------ 更新とオフライン (sw.js があれば)
