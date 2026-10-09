@@ -573,6 +573,65 @@ async function run() {
     });
     ok(skyEls.blend === 'overlay' && skyEls.w === 430 && skyEls.h === 842 && skyEls.bg && skyEls.loaded, `空は CSS のグラデーションに、紙の絵を重ね合わせで載せている (${skyEls.blend}、${skyEls.w}x${skyEls.h})`);
 
+    // ------------------------------------------------ アイテムと残りハートの絵
+    section('アイテムと残りハートの絵 (折り紙)');
+    await phone.waitForFunction(() => window.__app.itemArtReady(), null, { timeout: 5000 }).catch(() => {});
+    ok(await phone.evaluate(() => window.__app.itemArtReady()), 'アイテム 3 種と残りハートの絵が読み込まれ、ゲームで使われている');
+    const itemArt = await phone.evaluate(async () => {
+      const out = {};
+      for (const [k, src, size] of [['star', 'assets/item-star.webp', 80], ['slow', 'assets/item-slow.webp', 80], ['heart', 'assets/item-heart.webp', 80], ['hud', 'assets/hud-heart.webp', 52], ['off', 'assets/hud-heart-off.webp', 52]]) {
+        const img = new Image(); img.src = src; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        const d = x.getImageData(0, 0, img.width, img.height).data;
+        let r = 0, g = 0, b = 0, n = 0, magenta = 0, sat = 0;
+        for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 100) {     // 足りないハートは半透明 (不透明度 0.6) に作ってあるので、半透明も数える
+          n++; r += d[i]; g += d[i + 1]; b += d[i + 2]; sat += Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]);
+          if (d[i + 2] > d[i + 1] * 1.6 && d[i] > 150 && d[i + 1] < d[i] * 0.45) magenta++;
+        }
+        const A = (xx, yy) => d[(yy * img.width + xx) * 4 + 3];
+        out[k] = { size: [img.width, img.height], want: size, n, r: r / n, g: g / n, b: b / n, magenta, sat: sat / n, corner: A(0, 0) + A(img.width - 1, 0) + A(0, img.height - 1) + A(img.width - 1, img.height - 1), mid: A(img.width >> 1, img.height >> 1) };
+      }
+      return out;
+    });
+    ok(Object.values(itemArt).every((a) => a.size[0] === a.want && a.size[1] === a.want), 'アイテムと残りハートの絵が、決めた大きさ (80 / 52 の正方形)');
+    ok(Object.values(itemArt).every((a) => a.corner === 0 && a.magenta === 0), `四隅が透明で、背景の赤紫が残らない (${Object.values(itemArt).map((a) => a.magenta).join('/')} 画素)`);
+    ok(itemArt.star.r > itemArt.star.b + 60 && itemArt.star.g > itemArt.star.b + 30, '星は金色');
+    ok(itemArt.heart.r > itemArt.heart.g + 50 && itemArt.hud.r > itemArt.hud.g + 50, 'ハートは赤');
+    ok(itemArt.slow.g > itemArt.slow.b + 20, '亀は緑 (甲羅の茶を含む)');
+    ok(itemArt.off.sat < itemArt.hud.sat * 0.4, `足りないハートは、同じ絵の色を落としたもの (色の濃さ ${itemArt.off.sat.toFixed(0)} < ${(itemArt.hud.sat * 0.4).toFixed(0)})`);
+
+    // 画面に出たアイテム (キャンバスは動く物だけ。各アイテムの枠に、その色の絵が描かれているか) と、残りハート・効果の印
+    const itemScene = await phone.evaluate(async () => {
+      window.__app.startGame('adventure');
+      const g = window.__app.game();
+      g.phase = 'play'; g.score = 3; g.hearts = 2; g.play = 10; g.starUntil = 120; g.slowUntil = 90; g.birdY = 800; g.vy = 0;
+      g.items = [{ x: 300, y: 330, type: 'star' }, { x: 300, y: 450, type: 'slow' }, { x: 300, y: 570, type: 'heart' }];
+      g.pipes = [];
+      window.__app.render();
+      const c = document.getElementById('game'), k = c.width / 430, x = c.getContext('2d');
+      const region = (cx, cy, half, thr = 200) => {
+        const d = x.getImageData(Math.round((cx - half) * k), Math.round((cy - half) * k), Math.round(half * 2 * k), Math.round(half * 2 * k)).data;
+        let n = 0, r = 0, gg = 0, b = 0, tot = 0;
+        for (let i = 0; i < d.length; i += 4) { tot++; if (d[i + 3] > thr) { n++; r += d[i]; gg += d[i + 1]; b += d[i + 2]; } }
+        return { cover: n / tot, r: n ? r / n : 0, g: n ? gg / n : 0, b: n ? b / n : 0 };
+      };
+      // 絵が無いときの白い丸の縁 (半径 14pt) が、まだ描かれていない: 枠の四隅 (絵の外) に不透明な画素が無い
+      const corner = (cx, cy) => region(cx - 17, cy - 17, 3).cover;
+      const res = { star: region(300, 330, 14), slow: region(300, 450, 14), heart: region(300, 570, 14),
+                    badge: Math.max(corner(300, 330), corner(300, 450), corner(300, 570)),
+                    h0: region(14 + 13, 59 + 8 + 13, 10), h1: region(14 + 30 + 13, 59 + 8 + 13, 10), h2: region(14 + 60 + 13, 59 + 8 + 13, 10, 100),
+                    fxStar: region(24, 59 + 50, 11), fxSlow: region(24, 59 + 80, 11) };
+      return res;
+    });
+    ok(itemScene.star.cover > 0.25 && itemScene.star.r > itemScene.star.b + 60, `星が金色の絵で描かれている (被り ${(itemScene.star.cover * 100).toFixed(0)}%)`);
+    ok(itemScene.slow.cover > 0.2 && itemScene.slow.g > itemScene.slow.b + 20, `亀が緑の絵で描かれている (被り ${(itemScene.slow.cover * 100).toFixed(0)}%)`);
+    ok(itemScene.heart.cover > 0.25 && itemScene.heart.r > itemScene.heart.g + 50, `ハートが赤の絵で描かれている (被り ${(itemScene.heart.cover * 100).toFixed(0)}%)`);
+    ok(itemScene.badge === 0, '絵のときは、白い丸の縁が描かれない');
+    ok(itemScene.h0.r > itemScene.h0.g + 50 && itemScene.h1.r > itemScene.h1.g + 50, '残りハート (2 つ) が赤い折り紙で出ている');
+    ok(itemScene.h2.cover > 0.15 && itemScene.h2.r < itemScene.h2.g + 30, '足りない 1 つは、色を落とした薄いハート');
+    ok(itemScene.fxStar.cover > 0.2 && itemScene.fxSlow.cover > 0.2, `効果の印 (星・亀) が重ならずに並ぶ (被り ${(itemScene.fxStar.cover * 100).toFixed(0)}% / ${(itemScene.fxSlow.cover * 100).toFixed(0)}%)`);
+
     // ------------------------------------------------ 自動操縦で実際に遊ぶ
     section('自動操縦で遊ぶ (実際のタップ操作で 15 点)');
     await phone.evaluate(() => window.__app.startGame('classic'));
@@ -681,6 +740,7 @@ async function run() {
     await plain.goto(URL);
     await plain.waitForFunction(() => window.__app);
     ok(await plain.evaluate(() => { window.__app.startGame('classic'); window.__app.game().score = 12; window.__app.game().phase = 'play'; window.__app.render(); return !window.__app.digitsArtReady(); }), '絵が読めなくても、点数は文字で出る (エラーなし)');
+    ok(await plain.evaluate(() => { window.__app.startGame('adventure'); const g = window.__app.game(); g.phase = 'play'; g.hearts = 2; g.starUntil = g.slowUntil = 100; g.items = [{ x: 300, y: 330, type: 'star' }, { x: 300, y: 450, type: 'slow' }, { x: 300, y: 570, type: 'heart' }]; window.__app.render(); return !window.__app.itemArtReady(); }), '絵が読めなくても、アイテム・残りハート・効果の印は元の描き方で出る (エラーなし)');
     await phone.reload();
     await phone.waitForFunction(() => window.__app.pipeSpritesReady() && window.__app.groundArtReady() && window.__app.birdSpritesReady());
     const cdpA = await context.newCDPSession(phone), cdpB = await plainCtx.newCDPSession(plain);

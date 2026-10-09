@@ -49,6 +49,8 @@
    ['cloud3', 'assets/cloud3.png'], ['cloud4', 'assets/cloud4.png'], ['capTop', 'assets/pipe-cap-top.png'],
    ['capBottom', 'assets/pipe-cap-bottom.png'], ['ground', 'assets/ground.jpg'],
    ['digitsLight', 'assets/digits-light.webp'], ['digitsDark', 'assets/digits-dark.webp'],
+   ['itemStar', 'assets/item-star.webp'], ['itemSlow', 'assets/item-slow.webp'], ['itemHeart', 'assets/item-heart.webp'],
+   ['hudHeart', 'assets/hud-heart.webp'], ['hudHeartOff', 'assets/hud-heart-off.webp'],
    ['titleLogo', 'assets/title-logo.webp'], ['titleStart', 'assets/title-start.webp'], ['titlePanel', 'assets/title-panel.webp']].forEach(function (a) {
     const img = new Image();
     img.onload = function () { art[a[0]] = img; };
@@ -474,8 +476,18 @@
     ctx.fillStyle = dark; ctx.fillRect(p.x + PIPE_W - 7, bottom, 10, 24);
   }
 
+  // アイテム: 折り紙の絵 (40pt の正方形、2 倍の画素)。当たりは ITEM_R (14pt) のまま。ふわふわ上下する
+  const ITEM_ART = { star: 'itemStar', slow: 'itemSlow', heart: 'itemHeart' };
   function drawItem(it) {
     const y = it.y + Math.sin(game.frames * 0.1 + it.x * 0.01) * 3;
+    const img = art[ITEM_ART[it.type]];
+    if (img) {
+      ctx.save();
+      ctx.shadowColor = 'rgba(20, 40, 70, .35)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 2;
+      ctx.drawImage(img, it.x - 20, y - 20, 40, 40);
+      ctx.restore();
+      return;
+    }
     ctx.save();
     ctx.globalAlpha = 0.9;
     ctx.fillStyle = '#fff';
@@ -545,12 +557,12 @@
     ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 2; ctx.stroke();
   }
 
-  function drawEffectBar(icon, ratio, y, color) {
+  function drawEffectBar(key, icon, ratio, y, color) {
     ctx.save();
-    ctx.font = '16px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#000'; ctx.fillText(icon, 14, y);
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(38, y - 5, 60, 10);
-    ctx.fillStyle = color; ctx.fillRect(38, y - 5, 60 * Math.max(0, ratio), 10);
+    if (art[key]) ctx.drawImage(art[key], 10, y - 14, 28, 28);   // 折り紙の絵 (28pt)
+    else { ctx.font = '16px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000'; ctx.fillText(icon, 14, y); }
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(42, y - 5, 60, 10);
+    ctx.fillStyle = color; ctx.fillRect(42, y - 5, 60 * Math.max(0, ratio), 10);
     ctx.restore();
   }
 
@@ -558,10 +570,14 @@
     if (els.vStart.classList.contains('on')) return;
     drawScoreDigits(game.score, SAFE_TOP + 40);
     if (game.mode === 'adventure') {
-      for (let i = 0; i < C.MAX_HEARTS; i++) drawHeart(26 + i * 28, SAFE_TOP + 12, 22, i < game.hearts);
+      for (let i = 0; i < C.MAX_HEARTS; i++) {
+        const img = i < game.hearts ? art.hudHeart : art.hudHeartOff;     // 折り紙の小さいハート。足りない分は色を落とした同じ絵
+        if (img) ctx.drawImage(img, 14 + i * 30, SAFE_TOP + 8, 26, 26);
+        else drawHeart(26 + i * 28, SAFE_TOP + 12, 22, i < game.hearts);
+      }
       let y = SAFE_TOP + 50;
-      if (game.play < game.starUntil) { drawEffectBar('⭐', (game.starUntil - game.play) / C.STAR_FRAMES, y, '#f4b41a'); y += 24; }
-      if (game.play < game.slowUntil) drawEffectBar('🐢', (game.slowUntil - game.play) / C.SLOW_FRAMES, y, '#3cb371');
+      if (game.play < game.starUntil) { drawEffectBar('itemStar', '⭐', (game.starUntil - game.play) / C.STAR_FRAMES, y, '#f4b41a'); y += 30; }
+      if (game.play < game.slowUntil) drawEffectBar('itemSlow', '🐢', (game.slowUntil - game.play) / C.SLOW_FRAMES, y, '#3cb371');
     }
     if (banner.until > game.play && game.phase === 'play') {
       ctx.save();
@@ -655,6 +671,7 @@
       birdSpritesReady: function () { return birdLoaded === 3; },
       pipeSpritesReady: pipeArtReady,
       groundArtReady: function () { return !!art.ground; },
+      itemArtReady: function () { return !!(art.itemStar && art.itemSlow && art.itemHeart && art.hudHeart && art.hudHeartOff); },
       digitsArtReady: function () { return !!(art.digitsLight && art.digitsDark); },
       digits: function () { return DIGITS; },
       cloudArtReady: function () { return !!(art.cloud1 && art.cloud2 && art.cloud3 && art.cloud4); }
