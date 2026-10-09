@@ -352,7 +352,7 @@ async function run() {
       }
       return res;
     });
-    ok(sprites.every((s) => s.w === 107 && s.h === 113), '鳥の 3 コマが同じ大きさ (107×113)');
+    ok(sprites.every((s) => s.w === 142 && s.h === 124), `鳥の 3 コマが同じ大きさ (142×124。${sprites.map((s) => s.w + 'x' + s.h).join(' / ')})`);
     ok(sprites.every((s) => s.corner === 0), '四隅が透明 (背景が残っていない)');
     ok(sprites.every((s) => s.magenta === 0), `背景のマゼンタが残っていない (${sprites.map((s) => s.magenta).join('/')} 画素)`);
     ok(sprites.every((s) => s.mid === 255), '絵の中心 (体の中心) が不透明 = 当たり判定の丸の中にある');

@@ -88,7 +88,6 @@
   function pipeArtReady() { return !!(art.body && art.capTop && art.capBottom); }
 
   const BIRD_FRAMES = [0, 1, 2, 1];   // 羽: 上 → 中 → 下 → 中
-  const BIRD_W = 107 / 2, BIRD_H = 113 / 2;   // 体の中心が絵の中心 (2 倍で作ってある)
 
   // 折り紙の数字 (0〜9 を 1 枚に並べた絵。2 倍の画素)。x と w は、絵の中の各数字の左端と幅 (px)、h は高さ (px)。
   // 明るい (タン色) 方はゲーム中の点数 (空の上)、濃い茶の方はゲームオーバーの札の点数
@@ -505,7 +504,8 @@
     }
     const sprite = birdImgs[BIRD_FRAMES[Math.floor(game.frames / 4) % 4]];
     if (birdLoaded === 3 && sprite) {
-      ctx.drawImage(sprite, -BIRD_W / 2, -BIRD_H / 2, BIRD_W, BIRD_H);
+      // 体の中心が絵の中心 (2 倍の画素で作ってあるので、半分の大きさで貼る)
+      ctx.drawImage(sprite, -sprite.width / 4, -sprite.height / 4, sprite.width / 2, sprite.height / 2);
     } else {
       ctx.fillStyle = '#ffd93d';
       ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();

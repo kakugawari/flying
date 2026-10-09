@@ -45,7 +45,7 @@ npm run test:ui    # ブラウザで実際に動かすテスト (要 npm i -D pl
 index.html / styles.css   画面 (タイトルと終わりの札は HTML、ゲーム本体は canvas)
 core.js                   ロジック。DOM を触らない。ブラウザと node の両方で動く
 app.js                    操作・描画・音
-assets/                   絵 (折り紙の世界観。bird1〜3.png = 鳥の羽ばたき / pipe-body・pipe-cap-top・pipe-cap-bottom = 柱 / ground.jpg = 床 /
+assets/                   絵 (折り紙の世界観。bird1〜3.png = 鳥の羽ばたき (上・中・下。142×124 の 2 倍の画素。体の中心が絵の中心。体の直径は約 38pt。当たりの丸は半径 15pt) / pipe-body・pipe-cap-top・pipe-cap-bottom = 柱 / ground.jpg = 床 /
                           cloud1〜4.png = 雲 / sky-paper.jpg = 空の紙の折り目と粒 (灰色 128 が変化なし) /
                           panel.webp・btn-retry.webp・btn-menu.webp・btn-mute.webp = ゲームオーバーの札・ボタン・ミュート /
                           digits-light.webp・digits-dark.webp = 折り紙の数字 0〜9 を 1 枚に並べた絵 /
