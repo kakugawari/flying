@@ -47,7 +47,8 @@
   const art = {};
   [['body', 'assets/pipe-body.png'], ['cloud1', 'assets/cloud1.png'], ['cloud2', 'assets/cloud2.png'],
    ['cloud3', 'assets/cloud3.png'], ['cloud4', 'assets/cloud4.png'], ['capTop', 'assets/pipe-cap-top.png'],
-   ['capBottom', 'assets/pipe-cap-bottom.png'], ['ground', 'assets/ground.jpg']].forEach(function (a) {
+   ['capBottom', 'assets/pipe-cap-bottom.png'], ['ground', 'assets/ground.jpg'],
+   ['digitsLight', 'assets/digits-light.webp'], ['digitsDark', 'assets/digits-dark.webp']].forEach(function (a) {
     const img = new Image();
     img.onload = function () { art[a[0]] = img; };
     img.src = a[1];
@@ -87,6 +88,63 @@
 
   const BIRD_FRAMES = [0, 1, 2, 1];   // 羽: 上 → 中 → 下 → 中
   const BIRD_W = 107 / 2, BIRD_H = 113 / 2;   // 体の中心が絵の中心 (2 倍で作ってある)
+
+  // 折り紙の数字 (0〜9 を 1 枚に並べた絵。2 倍の画素)。x と w は、絵の中の各数字の左端と幅 (px)、h は高さ (px)。
+  // 明るい (タン色) 方はゲーム中の点数 (空の上)、濃い茶の方はゲームオーバーの札の点数
+  const DIGITS = {
+    light: {"h": 98, "x": [0, 63, 118, 180, 242, 308, 370, 433, 495, 558], "w": [59, 51, 58, 58, 62, 58, 59, 58, 59, 59]},
+    dark: {"h": 130, "x": [0, 83, 154, 234, 316, 403, 485, 567, 647, 729], "w": [79, 67, 76, 78, 83, 78, 78, 76, 78, 80]}
+  };
+  const DIGIT_GAP = 3;   // 数字どうしの間 (2 倍の画素)
+
+  // ゲーム中の点数: 数字の絵を並べた 1 枚を、点数ごとに 1 回だけ作る (影つき)。毎コマ貼るのは 1 回だけ
+  const scoreCache = {};
+  function scoreSprite(n) {
+    const key = String(n) + '@' + dev();
+    if (scoreCache[key]) return scoreCache[key];
+    if (Object.keys(scoreCache).length > 80) for (const k in scoreCache) delete scoreCache[k];
+    const m = DIGITS.light, k = dev() / 2, s = String(n), img = art.digitsLight;
+    let wpx = 0;
+    for (const ch of s) wpx += m.w[+ch] + DIGIT_GAP;
+    wpx -= DIGIT_GAP;
+    const pad = 8, c = document.createElement('canvas');
+    c.width = Math.ceil(wpx * k) + pad * 2; c.height = Math.ceil(m.h * k) + pad * 2;
+    const x = c.getContext('2d');
+    x.shadowColor = 'rgba(40, 24, 8, .38)'; x.shadowBlur = 4; x.shadowOffsetY = 2;
+    let cx = pad;
+    for (const ch of s) {
+      const d = +ch;
+      x.drawImage(img, m.x[d], 0, m.w[d], m.h, cx, pad, m.w[d] * k, m.h * k);
+      cx += (m.w[d] + DIGIT_GAP) * k;
+    }
+    scoreCache[key] = c;
+    return c;
+  }
+  function drawScoreDigits(n, cy) {
+    if (!art.digitsLight) { outlinedText(String(n), W / 2, cy, 'bold 52px sans-serif'); return; }
+    const c = scoreSprite(n), k = dev();
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(c, Math.round(W / 2 * k - c.width / 2), Math.round(cy * k - c.height / 2));
+    ctx.restore();
+  }
+
+  // ゲームオーバーの点数: 濃い茶の数字の絵を、1 つずつ並べる。読み取り用の文字 (sr-only) も残す。絵が読めないときは文字のまま
+  function setScoreDigits(el, str) {
+    if (!art.digitsDark) { setPaperText(el, str); return; }
+    const m = DIGITS.dark;
+    el.textContent = '';
+    const sr = document.createElement('span'); sr.className = 'sr-only'; sr.textContent = str; el.appendChild(sr);
+    for (const ch of str) {
+      const d = +ch, i = document.createElement('i');
+      i.className = 'dg';
+      i.setAttribute('aria-hidden', 'true');
+      i.style.width = m.w[d] / 2 + 'px'; i.style.height = m.h / 2 + 'px';
+      i.style.backgroundSize = (m.x[9] + m.w[9]) / 2 + 'px ' + m.h / 2 + 'px';
+      i.style.backgroundPosition = -m.x[d] / 2 + 'px 0';
+      el.appendChild(i);
+    }
+  }
 
   // ---- 切り紙の文字: 1 字ずつ、ほんの少し傾けて上下にずらす (決まった並びなので、毎回同じ見た目) ----
   // textContent を入れ替えるので、中の span ごと作り直す。読む側 (textContent) は元の文字のまま
@@ -187,7 +245,7 @@
     const m = game.mode;
     clearTimeout(overTimer);
     overTimer = setTimeout(function () {
-      setPaperText(els.finalScore, String(finalScore));
+      setScoreDigits(els.finalScore, String(finalScore));
       setPaperText(els.overMode, m === 'adventure' ? 'アドベンチャー' : 'クラシック');
       setPaperText(els.overBest, isNew ? '自己ベスト更新！' : 'ベスト: ' + best);
       els.vOver.classList.add('on');
@@ -496,7 +554,7 @@
 
   function drawHud() {
     if (els.vStart.classList.contains('on')) return;
-    outlinedText(String(game.score), W / 2, SAFE_TOP + 40, 'bold 52px sans-serif');
+    drawScoreDigits(game.score, SAFE_TOP + 40);
     if (game.mode === 'adventure') {
       for (let i = 0; i < C.MAX_HEARTS; i++) drawHeart(26 + i * 28, SAFE_TOP + 12, 22, i < game.hearts);
       let y = SAFE_TOP + 50;
@@ -595,6 +653,8 @@
       birdSpritesReady: function () { return birdLoaded === 3; },
       pipeSpritesReady: pipeArtReady,
       groundArtReady: function () { return !!art.ground; },
+      digitsArtReady: function () { return !!(art.digitsLight && art.digitsDark); },
+      digits: function () { return DIGITS; },
       cloudArtReady: function () { return !!(art.cloud1 && art.cloud2 && art.cloud3 && art.cloud4); }
     };
   }

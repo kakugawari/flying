@@ -195,6 +195,11 @@ body {
   --cut-edge: #5f3a22;
 }
 .over-score small { font-size: 28px; margin-left: 6px; color: #c39a6a; --cut-edge: #a07a50; }
+/* 点数の数字は絵 (濃い茶)。1 つずつ並べ、基準線 (下) にそろえる。「てん」も同じ下にそろえる */
+#finalScore { display: flex; align-items: flex-end; gap: 1.5px; }
+.dg { display: block; background-image: url("assets/digits-dark.webp"); background-repeat: no-repeat; }
+.over-score:has(.dg) { align-items: flex-end; }
+.over-score:has(.dg) small { margin-bottom: 6px; }
 /* 下の折り返し (83〜100% = 216〜260pt): ベスト */
 .over-best { top: 238px; font-size: 18px; font-weight: 900; letter-spacing: .04em; min-height: 1.4em; }
 

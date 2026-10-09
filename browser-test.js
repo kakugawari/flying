@@ -205,7 +205,8 @@ async function run() {
     ok(sheetInfo.gapPB > 4 && sheetInfo.gapBM > 4, `札とボタンが重ならない (札の下 ${sheetInfo.gapPB.toFixed(0)}pt / ボタンの間 ${sheetInfo.gapBM.toFixed(0)}pt)`);
     ok(sheetInfo.top > 59 && sheetInfo.bottom < 932 - 34, `札とボタンが、安全域をよけて画面に収まる (${sheetInfo.top.toFixed(0)}〜${sheetInfo.bottom.toFixed(0)}pt)`);
     ok(sheetInfo.sheetA <= 0.2, `後ろのゲームが見える (幕の濃さ ${sheetInfo.sheetA})`);
-    ok(sheetInfo.scoreLum < 0.5, `点数は札の紙より濃い茶 (明るさ ${sheetInfo.scoreLum.toFixed(2)})`);
+    const scoreDom = await phone.evaluate(() => ({ dg: document.querySelectorAll('#finalScore .dg').length, text: document.getElementById('finalScore').textContent, hidden: document.querySelector('#finalScore .sr-only') !== null }));
+    ok(scoreDom.dg === scoreDom.text.length && scoreDom.text.length >= 1 && scoreDom.hidden, `点数は数字の絵が 1 つずつ並び、読み取り用の文字も残る (絵 ${scoreDom.dg} 個・文字 ${scoreDom.text})`);
     ok(sheetInfo.letters === 7, `題字が 1 字ずつの切り紙になっている (${sheetInfo.letters} 字)`);
 
     // 札の絵の上に、文字が折り目の面ごとに収まる (折り目は上から 46% と 83%)。折り目が文字の真上を通ると読みにくい
@@ -236,6 +237,31 @@ async function run() {
     });
     ok(uiArt.panel.w === 665 && uiArt.panel.h === 520 && uiArt.retry.w === 546 && uiArt.menu.w === 398 && uiArt.mute.w === 93, '札・ボタン・ミュートの絵が、決めた大きさで読み込める (2 倍の画素)');
     ok(Object.values(uiArt).every((a) => a.corner === 0 && a.magenta === 0 && a.mid === 255), `絵の四隅が透明・中心が不透明・背景の赤紫の名残が無い (赤紫 ${Object.values(uiArt).map((a) => a.magenta).join('/')} 画素)`);
+
+    // 折り紙の数字 (明るい方=ゲーム中の点数、濃い方=札の点数): 絵が読め、背景が残らず、0 の穴が抜けている
+    const digitArt = await phone.evaluate(async () => {
+      const M = window.__app.digits(), out = {};
+      for (const [k, src] of [['light', 'assets/digits-light.webp'], ['dark', 'assets/digits-dark.webp']]) {
+        const img = new Image(); img.src = src; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        const d = x.getImageData(0, 0, img.width, img.height).data, A = (xx, yy) => d[(yy * img.width + xx) * 4 + 3];
+        let magenta = 0, op = 0, lum = 0;
+        for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200) { op++; lum += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]); if (d[i + 2] > d[i + 1] * 1.5 && d[i] > 120 && d[i + 1] < d[i] * 0.55) magenta++; }
+        const m = M[k], last = m.x[9] + m.w[9];
+        // 各数字の枠が、絵の中に収まり、重ならない
+        let fits = last <= img.width && img.height === m.h;
+        for (let i = 1; i < 10; i++) if (m.x[i] < m.x[i - 1] + m.w[i - 1]) fits = false;
+        // 0 の中 (穴) が透明。8 の中 (2 つの穴のあいだ) は紙
+        const zeroHole = A(m.x[0] + (m.w[0] >> 1), m.h >> 1), eightMid = A(m.x[8] + (m.w[8] >> 1), m.h >> 1);
+        out[k] = { size: [img.width, img.height], magenta, lum: lum / op, fits, zeroHole, eightMid, corner: A(0, 0) + A(img.width - 1, 0) + A(0, img.height - 1) + A(img.width - 1, img.height - 1) };
+      }
+      return out;
+    });
+    ok(digitArt.light.fits && digitArt.dark.fits, '数字の絵の各枠が、絵の中に収まり、重ならない');
+    ok(digitArt.light.magenta === 0 && digitArt.dark.magenta === 0 && digitArt.light.corner === 0 && digitArt.dark.corner === 0, `数字の絵に背景の赤紫が残らず、四隅が透明 (赤紫 ${digitArt.light.magenta}/${digitArt.dark.magenta} 画素)`);
+    ok(digitArt.light.zeroHole < 30 && digitArt.dark.zeroHole < 30, `0 の穴が抜けている (中心の不透明度 ${digitArt.light.zeroHole}/${digitArt.dark.zeroHole})`);
+    ok(digitArt.dark.lum < 90 && digitArt.light.lum > 120 && digitArt.light.lum < 200, `濃い方は札の紙より暗く (明るさ ${digitArt.dark.lum.toFixed(0)})、明るい方は空の上で読める (${digitArt.light.lum.toFixed(0)})`);
 
     // ------------------------------------------------ 鳥の絵
     section('鳥の絵 (折り紙)');
@@ -369,6 +395,30 @@ async function run() {
       return worst;
     });
     ok(groundGap.gaps === 0, `床の絵の継ぎ目に隙間が出ない (透けた画素 ${groundGap.gaps}${groundGap.gaps ? '、位置 ' + groundGap.at : ''})`);
+
+    // ゲーム中の点数: 紙の数字 (タン色) が、画面の上の中央に出る。1 桁でも 2 桁でも中央にそろう
+    const hud = await phone.evaluate(async () => {
+      const res = {};
+      for (const sc of [0, 7, 23, 108]) {
+        window.__app.startGame('classic');
+        const g = window.__app.game(); g.score = sc; g.phase = 'play'; g.birdY = 700; g.vy = 0;
+        window.__app.render();
+        const c = document.getElementById('game'), k = c.width / 430, x = c.getContext('2d');
+        const y0 = 59, y1 = 130;
+        const d = x.getImageData(0, Math.round(y0 * k), c.width, Math.round((y1 - y0) * k)).data;
+        let n = 0, sx = 0, minX = c.width, maxX = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i + 3] > 200 && d[i] - d[i + 2] > 55 && d[i] > 120) {     // タン色 (空の青より赤が強い)
+            const px = (i / 4) % c.width; n++; sx += px; minX = Math.min(minX, px); maxX = Math.max(maxX, px);
+          }
+        }
+        res[sc] = { n, cx: n ? sx / n / k : -1, w: (maxX - minX) / k };
+      }
+      return res;
+    });
+    ok(hud[0].n > 400 && hud[7].n > 400, `ゲーム中の点数が、紙の数字で出ている (0 点 ${hud[0].n} 画素 / 7 点 ${hud[7].n} 画素)`);
+    ok(Object.values(hud).every((h) => Math.abs(h.cx - 215) <= 8), `1 桁・2 桁・3 桁とも、画面の中央にそろう (中心 ${Object.values(hud).map((h) => h.cx.toFixed(0)).join('/')}pt)`);
+    ok(hud[108].w > hud[23].w && hud[23].w > hud[7].w, `桁が増えると幅が広がる (${hud[7].w.toFixed(0)} < ${hud[23].w.toFixed(0)} < ${hud[108].w.toFixed(0)}pt)`);
 
     // 画面に出た柱と床。当たりの縁と同じ位置に見えるか、夜は沈むか
     const scene = await phone.evaluate(async () => {
@@ -566,8 +616,10 @@ async function run() {
     const plainCtx = await browser.newContext(PHONE);
     const plain = await plainCtx.newPage();
     await plain.route('**/assets/*', (route) => route.abort());     // 絵を読ませない = これまでの描き方
+    plain.on('pageerror', (e) => errors.push('絵なし: ' + e.message));
     await plain.goto(URL);
     await plain.waitForFunction(() => window.__app);
+    ok(await plain.evaluate(() => { window.__app.startGame('classic'); window.__app.game().score = 12; window.__app.game().phase = 'play'; window.__app.render(); return !window.__app.digitsArtReady(); }), '絵が読めなくても、点数は文字で出る (エラーなし)');
     await phone.reload();
     await phone.waitForFunction(() => window.__app.pipeSpritesReady() && window.__app.groundArtReady() && window.__app.birdSpritesReady());
     const cdpA = await context.newCDPSession(phone), cdpB = await plainCtx.newCDPSession(plain);
