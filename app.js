@@ -20,7 +20,8 @@
     overBest: document.getElementById('overBest'),
     bestClassic: document.getElementById('bestClassic'),
     bestAdventure: document.getElementById('bestAdventure'),
-    mute: document.getElementById('btnMute')
+    mute: document.getElementById('btnMute'),
+    sky: document.getElementById('sky')
   };
 
   let game = C.create('classic');
@@ -42,7 +43,8 @@
   });
   // 柱と床の絵 (折り紙)。どれも 2 倍の画素で作ってある。読めない物は、これまでの描き方のまま
   const art = {};
-  [['body', 'assets/pipe-body.png'], ['capTop', 'assets/pipe-cap-top.png'],
+  [['body', 'assets/pipe-body.png'], ['cloud1', 'assets/cloud1.png'], ['cloud2', 'assets/cloud2.png'],
+   ['cloud3', 'assets/cloud3.png'], ['cloud4', 'assets/cloud4.png'], ['capTop', 'assets/pipe-cap-top.png'],
    ['capBottom', 'assets/pipe-cap-bottom.png'], ['ground', 'assets/ground.jpg']].forEach(function (a) {
     const img = new Image();
     img.onload = function () { art[a[0]] = img; };
@@ -296,28 +298,48 @@
     ctx.restore();
   }
 
+  // 空の色 (CSS のグラデーション)。変わったときだけ書き換える。単色でも linear-gradient で指定し、種類を変えない
+  let skyKey = '';
+  function applySky(pal) {
+    const key = rgb(pal.sky[0]) + rgb(pal.sky[1]);
+    if (key === skyKey) return;
+    skyKey = key;
+    els.sky.style.background = 'linear-gradient(' + rgb(pal.sky[0]) + ',' + rgb(pal.sky[1]) + ')';
+  }
+
+  // 雲 (折り紙)。絵が読めなかった物は、これまでの描き方のまま
+  function drawPaperCloud(name, x, y, pal, fallbackSize) {
+    if (!art[name]) { drawCloud(x, y, fallbackSize, pal.cloud); return; }
+    const c = sprite(name, pal.shade), k = dev();
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, pal.cloud * 1.2);
+    ctx.drawImage(c, x, y - c.height / k / 2, c.width / k, c.height / k);
+    ctx.restore();
+  }
+
   function drawBackground(pal) {
-    const g = ctx.createLinearGradient(0, 0, 0, H - GROUND);
-    g.addColorStop(0, rgb(pal.sky[0]));
-    g.addColorStop(1, rgb(pal.sky[1]));
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H - GROUND);
     if (pal.stars > 0.01) drawStars(pal.stars);
     if (pal.aurora > 0.01) drawAurora(pal.aurora);
     if (pal.moon > 0.01) drawMoon(pal.moon);
     const span = W + 160;
     const drift = (game.frames * 0.3) % span;
-    drawCloud(W + 80 - drift, 170, 1.0, pal.cloud);
-    drawCloud(W + 80 - ((drift + 230) % span), 290, 0.7, pal.cloud);
-    drawCloud(W + 80 - ((drift + 380) % span), 130, 0.55, pal.cloud);
-    drawCloud(W + 80 - ((drift + 120) % span), 420, 0.8, pal.cloud);
+    drawPaperCloud('cloud2', W + 80 - drift, 170, pal, 1.0);
+    drawPaperCloud('cloud1', W + 80 - ((drift + 230) % span), 290, pal, 0.7);
+    drawPaperCloud('cloud4', W + 80 - ((drift + 380) % span), 130, pal, 0.55);
+    drawPaperCloud('cloud3', W + 80 - ((drift + 120) % span), 420, pal, 0.8);
   }
 
   function drawGround(pal) {
     const top = H - GROUND;
     if (art.ground) {
+      // 実画素の座標で並べる。画面の大きさは 538 / 430 = 1.2512 倍で、絵 1 枚ぶん (400pt) が実画素で
+      // ぴったりにならない。pt のまま並べると、継ぎ目に 1 画素の隙間が出る
       const g = sprite('ground', pal.shade), k = dev();
-      for (let x = -(game.groundOffset % GROUND_PERIOD); x < W; x += GROUND_PERIOD) ctx.drawImage(g, snap(x), top, g.width / k, g.height / k);
+      const off = Math.round(game.groundOffset * k) % g.width, topPx = Math.round(top * k);
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      for (let x = -off; x < canvas.width; x += g.width) ctx.drawImage(g, x, topPx);
+      ctx.restore();
       return;
     }
     ctx.fillStyle = rgb(pal.ground[0]);
@@ -489,6 +511,8 @@
 
   function render() {
     const pal = C.palette(game.score);
+    applySky(pal);
+    ctx.clearRect(0, 0, W, H);   // 空は下の背景。ここは動くものだけ
     drawBackground(pal);
     for (const p of game.pipes) drawPipe(p, pal);
     for (const it of game.items) drawItem(it);
@@ -552,7 +576,8 @@
       showMenu: showMenu,
       birdSpritesReady: function () { return birdLoaded === 3; },
       pipeSpritesReady: pipeArtReady,
-      groundArtReady: function () { return !!art.ground; }
+      groundArtReady: function () { return !!art.ground; },
+      cloudArtReady: function () { return !!(art.cloud1 && art.cloud2 && art.cloud3 && art.cloud4); }
     };
   }
 

@@ -295,6 +295,24 @@ async function run() {
     ok(artInfo.seamGround <= Math.max(6, artInfo.adj * 2), `床を横に繋いだ継ぎ目が出ない (端の列の差 ${artInfo.seamGround.toFixed(1)} / となり合う列 ${artInfo.adj.toFixed(1)})`);
     ok(artInfo.gMagenta === 0 && artInfo.gGreenRate > 0.8, `床にマゼンタの名残が無く、緑で埋まっている (緑 ${(artInfo.gGreenRate * 100).toFixed(0)}%)`);
 
+    // 床の絵を並べた継ぎ目に隙間が出ない。流れる位置をいくつも変えて、床の行が端から端まで不透明か見る
+    // (キャンバスは床の外が透明なので、隙間があれば alpha が 0 になる)
+    const groundGap = await phone.evaluate(() => {
+      window.__app.startGame('classic');
+      const g = window.__app.game(), c = document.getElementById('game'), x = c.getContext('2d');
+      const k = c.width / 430, worst = { gaps: 0, at: -1 };
+      for (const off of [0, 1.7, 77, 199.5, 319, 399.9, 400, 401.3, 1234.5]) {
+        g.groundOffset = off; window.__app.render();
+        for (const yy of [850, 870, 900, 925]) {
+          const d = x.getImageData(0, Math.round(yy * k), c.width, 1).data;
+          let gaps = 0; for (let i = 3; i < d.length; i += 4) if (d[i] < 255) gaps++;
+          if (gaps > worst.gaps) { worst.gaps = gaps; worst.at = off; }
+        }
+      }
+      return worst;
+    });
+    ok(groundGap.gaps === 0, `床の絵の継ぎ目に隙間が出ない (透けた画素 ${groundGap.gaps}${groundGap.gaps ? '、位置 ' + groundGap.at : ''})`);
+
     // 画面に出た柱と床。当たりの縁と同じ位置に見えるか、夜は沈むか
     const scene = await phone.evaluate(async () => {
       const shoot = async (score, groundOffset) => {
@@ -323,6 +341,69 @@ async function run() {
     ok(Math.abs(scene.day.topEdge - 300) <= 2, `上の柱の口の縁が、当たりの縁 (300pt) に見える (${scene.day.topEdge}pt)`);
     ok(scene.deep.lum < scene.day.lum * 0.8, `夜は柱が沈んで暗い (朝 ${scene.day.lum.toFixed(0)} → 夜 ${scene.deep.lum.toFixed(0)})`);
     ok(scene.day.ground[1] > scene.day.ground[0] + 20 && scene.day.ground[1] > scene.day.ground[2] + 20, `床が緑で描かれている (${scene.day.ground.join(',')})`);
+
+    // ------------------------------------------------ 空と雲の絵
+    section('空と雲の絵 (折り紙)');
+    await phone.waitForFunction(() => window.__app.cloudArtReady(), null, { timeout: 5000 }).catch(() => {});
+    ok(await phone.evaluate(() => window.__app.cloudArtReady()), '雲の絵 4 枚が読み込まれ、ゲームで使われている');
+    const skyArt = await phone.evaluate(async () => {
+      const load = async (src) => {
+        const img = new Image(); img.src = src; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        return { w: img.width, h: img.height, d: x.getImageData(0, 0, img.width, img.height).data };
+      };
+      const clouds = [];
+      for (const n of [1, 2, 3, 4]) {
+        const im = await load('assets/cloud' + n + '.png');
+        let corner = 0, magenta = 0, rg = 0, op = 0, lum = 0;
+        for (const [x, y] of [[0, 0], [im.w - 1, 0], [0, im.h - 1], [im.w - 1, im.h - 1]]) corner += im.d[(y * im.w + x) * 4 + 3];
+        for (let i = 0; i < im.d.length; i += 4) if (im.d[i + 3] > 200) {
+          op++; rg += im.d[i] - im.d[i + 1]; lum += (im.d[i] + im.d[i + 1] + im.d[i + 2]) / 3;
+          if (im.d[i + 2] > im.d[i + 1] * 1.5 && im.d[i] > 120 && im.d[i + 1] < im.d[i] * 0.55) magenta++;
+        }
+        clouds.push({ w: im.w, h: im.h, corner, magenta, pink: rg / op, lum: lum / op, op });
+      }
+      const sp = await load('assets/sky-paper.jpg');
+      let mean = 0, sq = 0, gray = true, n = 0;
+      for (let i = 0; i < sp.d.length; i += 4 * 11) {
+        const v = sp.d[i]; mean += v; sq += v * v; n++;
+        if (Math.abs(sp.d[i] - sp.d[i + 1]) > 2 || Math.abs(sp.d[i] - sp.d[i + 2]) > 2) gray = false;
+      }
+      mean /= n;
+      return { clouds, sky: [sp.w, sp.h], mean, std: Math.sqrt(sq / n - mean * mean), gray };
+    });
+    ok(skyArt.clouds.every((c) => c.corner === 0), '雲の四隅が透明 (背景が残っていない)');
+    ok(skyArt.clouds.every((c) => c.magenta === 0), `雲にマゼンタの名残が無い (${skyArt.clouds.map((c) => c.magenta).join('/')} 画素)`);
+    ok(skyArt.clouds.every((c) => c.pink < 8 && c.lum > 170), `雲が桃色に寄らず、明るい白 (赤−緑 ${skyArt.clouds.map((c) => c.pink.toFixed(1)).join('/')}、明るさ ${skyArt.clouds.map((c) => c.lum.toFixed(0)).join('/')})`);
+    ok(skyArt.sky[0] === 538 && skyArt.sky[1] === 1053 && skyArt.gray, `紙の絵は灰色で 538×1053 (${skyArt.sky.join('x')})`);
+    ok(Math.abs(skyArt.mean - 128) <= 6 && skyArt.std >= 3 && skyArt.std <= 12, `紙の絵は、中間の灰色 128 まわりで折り目と粒だけを持つ (平均 ${skyArt.mean.toFixed(0)}、ばらつき ${skyArt.std.toFixed(1)})`);
+
+    // 画面に出た空 (スクリーンショットの画素を読む。値ではなく見えている色)
+    const skyAt = async (score) => {
+      await phone.evaluate((sc) => { window.__app.startGame('classic'); const g = window.__app.game(); g.score = sc; g.phase = 'ready'; window.__app.render(); }, score);
+      await phone.waitForTimeout(150);
+      const shot = (await phone.screenshot()).toString('base64');
+      return phone.evaluate(async (b64) => {
+        const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        const k = img.width / 430;
+        const d = x.getImageData(Math.round(20 * k), Math.round(200 * k), Math.round(60 * k), Math.round(40 * k)).data;
+        let r = 0, g = 0, b = 0, n = 0, lo = 255, hi = 0;
+        for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; const l = (d[i] + d[i + 1] + d[i + 2]) / 3; lo = Math.min(lo, l); hi = Math.max(hi, l); }
+        return { r: r / n, g: g / n, b: b / n, spread: hi - lo };
+      }, shot);
+    };
+    const dayPx = await skyAt(0), nightPx = await skyAt(35);
+    ok(dayPx.b > dayPx.r + 60 && dayPx.b > 180, `朝の空が紙の青で見えている (${dayPx.r.toFixed(0)},${dayPx.g.toFixed(0)},${dayPx.b.toFixed(0)})`);
+    ok(nightPx.b < 130 && nightPx.r < 60, `夜の空は暗い紺で見えている (${nightPx.r.toFixed(0)},${nightPx.g.toFixed(0)},${nightPx.b.toFixed(0)})`);
+    ok(dayPx.spread >= 6 || nightPx.spread >= 4, `空に紙の粒・折り目の濃淡が出ている (朝の幅 ${dayPx.spread.toFixed(0)} / 夜 ${nightPx.spread.toFixed(0)})`);
+    const skyEls = await phone.evaluate(() => {
+      const p = document.getElementById('skyPaper'), s = document.getElementById('sky'), r = p.getBoundingClientRect();
+      return { blend: getComputedStyle(p).mixBlendMode, w: Math.round(r.width), h: Math.round(r.height), bg: getComputedStyle(s).backgroundImage.startsWith('linear-gradient'), loaded: p.complete && p.naturalWidth > 0 };
+    });
+    ok(skyEls.blend === 'overlay' && skyEls.w === 430 && skyEls.h === 842 && skyEls.bg && skyEls.loaded, `空は CSS のグラデーションに、紙の絵を重ね合わせで載せている (${skyEls.blend}、${skyEls.w}x${skyEls.h})`);
 
     // ------------------------------------------------ 自動操縦で実際に遊ぶ
     section('自動操縦で遊ぶ (実際のタップ操作で 15 点)');

@@ -14,6 +14,10 @@
 <body>
 
 <div id="app">
+  <!-- 空: キャンバスの下の背景。色は CSS のグラデーション (ステージごとに app.js が替える)、紙の折り目と粒は絵を重ね合わせで載せる。動かないので毎コマ塗らない -->
+  <div id="sky"></div>
+  <img id="skyPaper" src="./assets/sky-paper.jpg" alt="">
+
   <canvas id="game" width="430" height="932"></canvas>
 
   <button type="button" id="btnMute" class="mute" aria-label="サウンド切り替え">🔊</button>
