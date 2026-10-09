@@ -22,19 +22,18 @@
 
   <button type="button" id="btnMute" class="mute" aria-label="サウンド切り替え" aria-pressed="false"></button>
 
-  <section id="vStart" class="sheet on">
-    <h1 class="logo">ふわりバード</h1>
-    <p class="hint">あそぶモードをえらんでね</p>
-    <button type="button" id="btnClassic" class="btn btn-mode">
-      <span class="mode-name">クラシック</span>
-      <span class="mode-sub">むかしながらの一発勝負</span>
-      <span class="mode-best" id="bestClassic">ベスト 0</span>
-    </button>
-    <button type="button" id="btnAdventure" class="btn btn-mode btn-adv">
-      <span class="mode-name">アドベンチャー</span>
-      <span class="mode-sub">ハート3つ＆アイテムつき！</span>
-      <span class="mode-best" id="bestAdventure">ベスト 0</span>
-    </button>
+  <!-- タイトル: ロゴ・「タップでスタート」・モード選択の札は絵 (assets/title-*.webp)。ボタンは絵の上に透明な当たりを重ね、
+       ベストの数字だけ本物のテキスト (絵のほうは消してある) -->
+  <section id="vStart" class="sheet sheet-title on">
+    <h1 class="title-logo"><span class="sr-only">ふわりバード</span></h1>
+    <button type="button" id="btnQuick" class="title-start" aria-label="タップでスタート (前回のモード)"></button>
+    <div class="title-panel">
+      <p class="sr-only">あそぶモードをえらんでね</p>
+      <button type="button" id="btnClassic" class="mode-hit mode-classic" aria-label="クラシック むかしながらの一発勝負"></button>
+      <button type="button" id="btnAdventure" class="mode-hit mode-adv" aria-label="アドベンチャー ハート3つとアイテムつき"></button>
+      <span class="mode-best best-classic" id="bestClassic">ベスト 0</span>
+      <span class="mode-best best-adv" id="bestAdventure">ベスト 0</span>
+    </div>
   </section>
 
   <!-- ゲームオーバー: 折り紙の札 (絵) の上に、点数などの文字を本物のテキストで重ねる。ボタンは文字入りの絵 -->

@@ -158,14 +158,75 @@ async function run() {
     ok(idle.phase === 'ready' && idle.pipes === 0, 'タイトルの間は柱が出ず、重力もかからない');
     ok(idle.moved > 8, `タイトルの鳥がふわふわ動いている (1.5 秒で ${idle.moved.toFixed(1)}px の幅)`);
 
-    // 札の中身が、待っている鳥に重ならない (重なって見えにくかった)
-    const overlap = await phone.evaluate(() => {
+    // 待っている鳥 (y≒373) が、ロゴ・「タップでスタート」・モード選択のどれにも隠れない (鳥は ロゴ と 札 のあいだ)
+    const layout = await phone.evaluate(() => {
       const g = window.__app.game();
-      const bird = { top: g.birdY - 15 - 6, bottom: g.birdY + 15 + 6 };
-      const logo = document.querySelector('#vStart .logo').getBoundingClientRect();
-      return { logoTop: logo.top, birdBottom: bird.bottom };
+      const bird = { top: g.birdY - 30, bottom: g.birdY + 30 };
+      const r = (sel) => document.querySelector(sel).getBoundingClientRect();
+      const logo = r('#vStart .title-logo'), start = r('#btnQuick'), panel = r('#vStart .title-panel');
+      return { bird, logoBottom: logo.bottom, logoTop: logo.top, startTop: start.top, startBottom: start.bottom, panelTop: panel.top, panelBottom: panel.bottom,
+               logoW: logo.width, panelW: panel.width, startW: start.width };
     });
-    ok(overlap.logoTop > overlap.birdBottom, `題字が待っている鳥より下にある (題字 ${Math.round(overlap.logoTop)} > 鳥 ${Math.round(overlap.birdBottom)})`);
+    ok(layout.logoBottom < layout.bird.top && layout.startTop > layout.bird.bottom,
+      `待っている鳥が、ロゴと「タップでスタート」のあいだに見える (ロゴの下 ${layout.logoBottom.toFixed(0)} < 鳥 ${layout.bird.top.toFixed(0)}〜${layout.bird.bottom.toFixed(0)} < 札の上 ${layout.startTop.toFixed(0)})`);
+    ok(layout.logoTop >= 59 && layout.panelBottom <= 932 - 34 && layout.startBottom < layout.panelTop, `タイトルの部品が、安全域をよけて重ならずに収まる (${layout.logoTop.toFixed(0)}〜${layout.panelBottom.toFixed(0)}pt)`);
+    ok(layout.logoW <= 430 && layout.panelW <= 430 && layout.startW <= 430, 'タイトルの部品が、画面の幅に収まる');
+
+    // 絵のボタンの上に、押せる範囲 (透明なボタン) と、ベストの数字が正しく重なる
+    const hit = await phone.evaluate(() => {
+      const res = {};
+      for (const [id, best] of [['btnClassic', 'bestClassic'], ['btnAdventure', 'bestAdventure']]) {
+        const b = document.getElementById(id).getBoundingClientRect(), s = document.getElementById(best).getBoundingClientRect();
+        const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+        res[id] = { top: document.elementFromPoint(cx, cy) === document.getElementById(id), bestInside: s.left >= b.left && s.right <= b.right && s.top >= b.top && s.bottom <= b.bottom, w: b.width, h: b.height };
+      }
+      const q = document.getElementById('btnQuick').getBoundingClientRect();
+      res.quick = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2) === document.getElementById('btnQuick');
+      return res;
+    });
+    ok(hit.btnClassic.top && hit.btnAdventure.top && hit.quick, 'モードのボタンと「タップでスタート」の真上は、それぞれのボタン (ほかの物に隠れない)');
+    ok(hit.btnClassic.bestInside && hit.btnAdventure.bestInside, 'ベストの数字が、それぞれのボタンの絵の中に収まる');
+    ok(hit.btnClassic.h >= 44 && hit.btnAdventure.h >= 44, `ボタンは指で押せる大きさ (高さ ${hit.btnClassic.h.toFixed(0)}/${hit.btnAdventure.h.toFixed(0)}pt)`);
+
+    // タイトルの絵: 読め、四隅が透明で、背景の赤紫が残らず、絵の中に「ベスト」の文字の跡が無い (本物のテキストを重ねるため)
+    const titleArt = await phone.evaluate(async () => {
+      const load = async (src) => {
+        const img = new Image(); img.src = src; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        return { w: img.width, h: img.height, d: x.getImageData(0, 0, img.width, img.height).data };
+      };
+      const info = (im) => {
+        const A = (xx, yy) => im.d[(yy * im.w + xx) * 4 + 3];
+        let magenta = 0;
+        for (let i = 0; i < im.d.length; i += 4) if (im.d[i + 3] > 200 && im.d[i + 2] > im.d[i + 1] * 1.6 && im.d[i] > 150 && im.d[i + 1] < im.d[i] * 0.45) magenta++;
+        return { size: [im.w, im.h], magenta, corner: A(0, 0) + A(im.w - 1, 0) + A(0, im.h - 1) + A(im.w - 1, im.h - 1) };
+      };
+      const logo = await load('assets/title-logo.webp'), start = await load('assets/title-start.webp'), panel = await load('assets/title-panel.webp');
+      // 消した文字の場所 (札の絵の 2 倍の画素。ベストの数字の中心) に、文字の色が残っていないか
+      const ink = (x0, y0, test) => { let n = 0; for (let y = y0 - 14; y <= y0 + 14; y++) for (let x = x0 - 56; x <= x0 + 56; x++) { const i = (y * panel.w + x) * 4; if (panel.d[i + 3] > 200 && test(panel.d[i], panel.d[i + 1], panel.d[i + 2])) n++; } return n; };
+      const orange = ink(354, 248, (r, g, b) => r > 215 && g < 165 && b < 70), red = ink(355, 449, (r, g, b) => r > 190 && g < 110 && b < 110);
+      return { logo: info(logo), start: info(start), panel: info(panel), orange, red };
+    });
+    ok(titleArt.logo.size.join('x') === '725x348' && titleArt.start.size.join('x') === '549x161' && titleArt.panel.size.join('x') === '666x522', 'タイトルの絵 3 枚が、決めた大きさで読み込める');
+    ok([titleArt.logo, titleArt.start, titleArt.panel].every((a) => a.corner === 0 && a.magenta === 0), `タイトルの絵の四隅が透明で、背景の赤紫が残らない (${titleArt.logo.magenta}/${titleArt.start.magenta}/${titleArt.panel.magenta} 画素)`);
+    ok(titleArt.orange === 0 && titleArt.red === 0, `絵の中に「ベスト」の文字の跡が無い (橙 ${titleArt.orange} / 赤 ${titleArt.red} 画素。あれば本物の数字と二重に見える)`);
+
+    // 「タップでスタート」: 前回のモードで始まる (記録の無いブラウザは、クラシック)
+    const quick = await phone.evaluate(async () => {
+      const out = {};
+      for (const m of ['adventure', 'classic']) {
+        window.__app.showMenu();
+        try { localStorage.setItem('suisuiMode', m); } catch (e) { /* ignore */ }
+        // 保存したモードを読み直すのは起動時だけなので、ページを開き直さずに「前回」を確かめるため、メニューから選んだ物として扱う
+        window.__app.startGame(m); window.__app.showMenu();
+        document.getElementById('btnQuick').click();
+        out[m] = { mode: window.__app.game().mode, phase: window.__app.game().phase, sheet: document.getElementById('vStart').classList.contains('on') };
+      }
+      window.__app.showMenu();   // 次の確認がタイトルのボタンを押すので、タイトルに戻しておく
+      return out;
+    });
+    ok(quick.adventure.mode === 'adventure' && quick.classic.mode === 'classic' && !quick.adventure.sheet && quick.adventure.phase === 'ready', '「タップでスタート」で、前回のモードのまま始まり、タイトルが閉じる');
 
     // ------------------------------------------------ クラシック
     section('クラシック');

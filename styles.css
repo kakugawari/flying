@@ -105,39 +105,74 @@ body {
 }
 .sheet.on { display: flex; }
 
-.logo {
-  margin: 0 0 4px;
-  font-size: 44px;
-  font-weight: 900;
-  letter-spacing: .06em;
-  color: #fff;
-  -webkit-text-stroke: 7px rgba(60, 40, 30, .85);
-  paint-order: stroke fill;
+/* ---- タイトル: 絵 (assets/title-*.webp) を並べる。絵は 2 倍の画素 ---- */
+.sheet-title {
+  background: rgba(20, 40, 60, .10);   /* 後ろの空 (紙の青) が見えるように、ほとんど暗くしない */
+  justify-content: flex-start;
+  padding: 84px 0 0;
+  gap: 0;
 }
-.hint { margin: 0 0 6px; color: #fff; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
-
-.btn {
-  font: inherit;
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--ink);
-  background: var(--paper);
+.title-logo {
+  margin: 0;
+  width: 362.5px;              /* 725 x 348 の半分 */
+  height: 174px;
+  background: url("assets/title-logo.webp") center / 100% 100% no-repeat transparent;
+  filter: drop-shadow(0 4px 4px rgba(20, 40, 70, .30));
+}
+/* 「タップでスタート」。待っている鳥 (y≒373、上下 ±30) をよけて、ロゴとのあいだを空ける */
+.title-start {
+  margin-top: 152px;
+  width: 274.5px;              /* 549 x 161 の半分 */
+  height: 80.5px;
   border: 0;
-  border-radius: 16px;
-  padding: 14px 24px;
-  min-width: 240px;
+  padding: 0;
   cursor: pointer;
-  box-shadow: 0 4px 0 rgba(60, 40, 30, .35);
+  background: url("assets/title-start.webp") center / 100% 100% no-repeat transparent;
+  filter: drop-shadow(0 4px 4px rgba(20, 40, 70, .30));
 }
-.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(60, 40, 30, .35); }
-.btn-primary { background: var(--accent); color: var(--accent-ink); }
-
-.btn-mode { display: flex; flex-direction: column; gap: 3px; width: 280px; }
-.btn-mode .mode-name { font-size: 20px; }
-.btn-mode .mode-sub { font-size: 12px; font-weight: 600; color: var(--muted); }
-.btn-mode .mode-best { font-size: 12px; font-weight: 800; color: #e67e22; font-variant-numeric: tabular-nums; }
-.btn-adv { background: #ffe4dc; }
-.btn-adv .mode-name { color: var(--adv); }
+.title-start:active { transform: translateY(2px); }
+.title-panel {
+  position: relative;
+  margin-top: 22px;
+  width: 333px;                /* 666 x 522 の半分。札の絵の上に、当たりとベストの数字を重ねる */
+  height: 261px;
+  background: url("assets/title-panel.webp") center / 100% 100% no-repeat transparent;
+  filter: drop-shadow(0 5px 4px rgba(20, 40, 70, .30));
+}
+.mode-hit {
+  position: absolute;
+  left: 25px;
+  width: 284px;
+  height: 85px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  /* 絵のボタンの形 (両端を斜めに切った帯)。押している間だけ、同じ形で少し暗くする */
+  clip-path: polygon(4% 0, 96% 0, 100% 24%, 100% 76%, 96% 100%, 4% 100%, 0 76%, 0 24%);
+}
+.mode-hit:active { background: rgba(80, 40, 10, .14); }
+.mode-hit:focus-visible { outline: 3px solid #2d7fcc; outline-offset: -3px; }
+.mode-classic { top: 56px; }
+.mode-adv { top: 155px; }
+/* ベストの数字: 絵では消してあるので、ここだけ本物のテキスト。色は絵の文字から取った */
+.mode-best {
+  position: absolute;
+  left: 100px; width: 154px;
+  text-align: center;
+  font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+  font-size: 16.5px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  line-height: 1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  -webkit-text-stroke: .5px currentColor;   /* 絵の字 (太い丸ゴシック) に太さを近づける */
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+.best-classic { top: 124px; color: #f08304; }
+.best-adv { top: 224px; color: #e7262e; }
 
 /* ---- ゲームオーバー: 折り紙の札 (絵 assets/panel.webp) の上に、本物のテキストを重ねる ---- */
 .sheet-over {

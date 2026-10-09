@@ -48,7 +48,8 @@
   [['body', 'assets/pipe-body.png'], ['cloud1', 'assets/cloud1.png'], ['cloud2', 'assets/cloud2.png'],
    ['cloud3', 'assets/cloud3.png'], ['cloud4', 'assets/cloud4.png'], ['capTop', 'assets/pipe-cap-top.png'],
    ['capBottom', 'assets/pipe-cap-bottom.png'], ['ground', 'assets/ground.jpg'],
-   ['digitsLight', 'assets/digits-light.webp'], ['digitsDark', 'assets/digits-dark.webp']].forEach(function (a) {
+   ['digitsLight', 'assets/digits-light.webp'], ['digitsDark', 'assets/digits-dark.webp'],
+   ['titleLogo', 'assets/title-logo.webp'], ['titleStart', 'assets/title-start.webp'], ['titlePanel', 'assets/title-panel.webp']].forEach(function (a) {
     const img = new Image();
     img.onload = function () { art[a[0]] = img; };
     img.src = a[1];
@@ -284,6 +285,7 @@
       else tap();
     }
   });
+  document.getElementById('btnQuick').addEventListener('click', function () { startGame(); });   // 前回のモードで始める (キーボードの Space と同じ)
   document.getElementById('btnClassic').addEventListener('click', function () { startGame('classic'); });
   document.getElementById('btnAdventure').addEventListener('click', function () { startGame('adventure'); });
   document.getElementById('btnRetry').addEventListener('click', function () { startGame(); });
