@@ -1,131 +1,257 @@
-/* 見た目。色は :root にまとめ、明るい画面と暗い画面の両方を用意する。 */
+/* iPhone 16 Plus (430 x 932pt) 決め打ち。色は :root にまとめる */
 
 :root {
-  --bg: #10142a;
-  --bg-2: #171d3a;
-  --line: #2e3868;
-  --text: #eef1ff;
-  --muted: #9aa3cf;
-  --accent: #ffd166;
-  --accent-ink: #2a2200;
-  color-scheme: dark;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f3f5fb;
-    --bg-2: #ffffff;
-    --line: #dbe0f0;
-    --text: #1b1f36;
-    --muted: #666e93;
-    --accent: #ffb703;
-    --accent-ink: #2a1f00;
-    color-scheme: light;
-  }
+  --sky: #70c5ce;
+  --ink: #3b2f2a;
+  --paper: rgba(255, 250, 238, .94);
+  --accent: #ffb703;
+  --accent-ink: #2a1f00;
+  --adv: #c0392b;
+  --muted: #7a6a5e;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
+/* 根っこを 100vh にして position: relative。iOS のホーム画面起動で下に帯が出るのを防ぐ */
 html, body {
   margin: 0;
-  height: 100%;
+  height: 100vh;
+  position: relative;
   overflow: hidden;
   overscroll-behavior: none;
+  background: var(--sky);
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI",
-               system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
+  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", system-ui, -apple-system, sans-serif;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
-#app {
-  display: flex;
-  flex-direction: column;
-  height: 100dvh;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+#app { position: absolute; inset: 0; }
+
+#sky {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 842px;             /* 床の上まで (932 - 90) */
+  background: linear-gradient(rgb(112, 197, 206), rgb(188, 230, 236));
+}
+#skyPaper {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 430px;
+  height: 842px;
+  mix-blend-mode: overlay;   /* 灰色 128 = 変化なし。折り目と粒だけが、ステージの色の上に乗る */
+  pointer-events: none;
 }
 
-#topbar {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 10px 14px;
-  background: var(--bg-2);
-  border-bottom: 1px solid var(--line);
+#game {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
 }
 
-.title {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: .04em;
-}
-
-.topbar-actions { margin-left: auto; }
-
-.btn {
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 8px 14px;
+.mute {
+  position: absolute;
+  top: calc(var(--safe-top) + 8px);
+  right: 12px;
+  width: 46.5px;               /* 絵は 2 倍の画素 (93px) */
+  height: 46.5px;
+  border: 0;
+  padding: 0;
+  background: url("assets/btn-mute.webp") center / 100% 100% no-repeat transparent;
+  filter: drop-shadow(0 2px 2px rgba(40, 24, 8, .35));
   cursor: pointer;
-  transition: transform .08s ease, border-color .15s ease;
 }
-
-.btn:hover { border-color: var(--muted); }
-.btn:active { transform: translateY(1px); }
-
-.btn-primary {
-  background: var(--accent);
-  border-color: transparent;
-  color: var(--accent-ink);
+/* 切ってあるとき: 斜めの紙の帯を重ねる (絵は替えない。文字で書き換えると絵が消える) */
+.mute.off::after {
+  content: "";
+  position: absolute;
+  left: 8px; right: 8px; top: calc(50% - 2px);
+  height: 4px;
+  border-radius: 2px;
+  background: #6b4a33;
+  box-shadow: 0 0 0 1.5px rgba(248, 241, 226, .95);
+  transform: rotate(-42deg);
 }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-#stage {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
+/* 最初と終わりの札。出ていないときは何も受けない */
+.sheet {
+  position: absolute;
+  inset: 0;
+  display: none;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 14px;
-  padding: 24px;
+  background: rgba(20, 40, 60, .38);
   text-align: center;
+  padding: 300px 28px 0;   /* 待っている鳥 (y≒373) より下に置く */
 }
+.sheet.on { display: flex; }
 
-.lead { margin: 0; font-size: 18px; font-weight: 700; }
-
-.result {
+/* ---- タイトル: 絵 (assets/title-*.webp) を並べる。絵は 2 倍の画素 ---- */
+.sheet-title {
+  background: rgba(20, 40, 60, .10);   /* 後ろの空 (紙の青) が見えるように、ほとんど暗くしない */
+  justify-content: flex-start;
+  padding: 84px 0 0;
+  gap: 0;
+}
+.title-logo {
   margin: 0;
-  font-size: 32px;
-  font-weight: 800;
+  width: 362.5px;              /* 725 x 348 の半分 */
+  height: 174px;
+  background: url("assets/title-logo.webp") center / 100% 100% no-repeat transparent;
+  filter: drop-shadow(0 4px 4px rgba(20, 40, 70, .30));
+}
+/* 「タップでスタート」。待っている鳥 (y≒373、上下 ±30) をよけて、ロゴとのあいだを空ける */
+.title-start {
+  margin-top: 152px;
+  width: 274.5px;              /* 549 x 161 の半分 */
+  height: 80.5px;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: url("assets/title-start.webp") center / 100% 100% no-repeat transparent;
+  filter: drop-shadow(0 4px 4px rgba(20, 40, 70, .30));
+}
+.title-start:active { transform: translateY(2px); }
+.title-panel {
+  position: relative;
+  margin-top: 22px;
+  width: 333px;                /* 666 x 522 の半分。札の絵の上に、当たりとベストの数字を重ねる */
+  height: 261px;
+  background: url("assets/title-panel.webp") center / 100% 100% no-repeat transparent;
+  filter: drop-shadow(0 5px 4px rgba(20, 40, 70, .30));
+}
+.mode-hit {
+  position: absolute;
+  left: 25px;
+  width: 284px;
+  height: 85px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  /* 絵のボタンの形 (両端を斜めに切った帯)。押している間だけ、同じ形で少し暗くする */
+  clip-path: polygon(4% 0, 96% 0, 100% 24%, 100% 76%, 96% 100%, 4% 100%, 0 76%, 0 24%);
+}
+.mode-hit:active { background: rgba(80, 40, 10, .14); }
+.mode-hit:focus-visible { outline: 3px solid #2d7fcc; outline-offset: -3px; }
+.mode-classic { top: 56px; }
+.mode-adv { top: 155px; }
+/* ベストの数字: 絵では消してあるので、ここだけ本物のテキスト。色は絵の文字から取った */
+.mode-best {
+  position: absolute;
+  left: 100px; width: 154px;
+  text-align: center;
+  font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+  font-size: 16.5px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  line-height: 1;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  color: var(--accent);
+  -webkit-text-stroke: .5px currentColor;   /* 絵の字 (太い丸ゴシック) に太さを近づける */
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+.best-classic { top: 124px; color: #f08304; }
+.best-adv { top: 224px; color: #e7262e; }
+
+/* ---- ゲームオーバー: 折り紙の札 (絵 assets/panel.webp) の上に、本物のテキストを重ねる ---- */
+.sheet-over {
+  background: rgba(20, 40, 60, .10);   /* 後ろのゲーム (止まった鳥・柱・雲) が見えるように、ほとんど暗くしない */
+  padding: 0 0 70px;
+  gap: 0;
+}
+.paper-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  filter: drop-shadow(0 6px 5px rgba(40, 24, 8, .32));
 }
 
-.note {
+/* 切り紙の文字: 薄茶の紙。縁を明るく、下に濃い茶の厚み、その下にやわらかい影 */
+.paper-panel {
+  --cut: #c39a6a;
+  --cut-edge: #a07a50;
+  position: relative;
+  width: 332.5px;              /* 絵は 2 倍の画素 (665 x 520)。折り目は上から 46% と 83% のところ */
+  height: 260px;
+  background: url("assets/panel.webp") center / 100% 100% no-repeat transparent;
+}
+.over-title, .over-mode, .over-score, .over-best {
+  position: absolute;
+  left: 0; right: 14px;        /* 絵の右の端に折り返しがあるので、紙の面の中心 (少し左) に合わせる */
   margin: 0;
-  max-width: 34em;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.9;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--cut);
+  text-shadow:
+    0 -1px 0 rgba(255, 255, 255, .75),
+    0 1px 0 var(--cut-edge),
+    0 2px 0 var(--cut-edge),
+    0 4px 5px rgba(70, 40, 10, .22);
+  transform: translateY(-50%);
 }
+.pl { display: inline-block; }   /* 1 字ずつ、ほんの少し傾けて手で切った感じにする (app.js が付ける) */
+/* 上の面 (0〜46%): 題字とモード名。折り目 (46% = 120pt) の上に収める */
+.over-title { top: 50px;  font-size: 34px; font-weight: 900; letter-spacing: .02em; line-height: 1.2; }
+.over-mode  { top: 94px;  font-size: 17px; font-weight: 800; letter-spacing: .08em; }
+/* 中の面 (46〜83%): 点数 */
+.over-score {
+  top: 168px;
+  display: flex;               /* 数字と「てん」を同じ行の基準線にそろえ、枠の高さを字の高さに詰める */
+  align-items: baseline;
+  justify-content: center;
+  height: 84px;
+  font-size: 80px;
+  font-weight: 900;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  --cut: #94603f;              /* 点数は濃い茶 */
+  --cut-edge: #5f3a22;
+}
+.over-score small { font-size: 28px; margin-left: 6px; color: #c39a6a; --cut-edge: #a07a50; }
+/* 点数の数字は絵 (濃い茶)。1 つずつ並べ、基準線 (下) にそろえる。「てん」も同じ下にそろえる */
+#finalScore { display: flex; align-items: flex-end; gap: 1.5px; }
+.dg { display: block; background-image: url("assets/digits-dark.webp"); background-repeat: no-repeat; }
+.over-score:has(.dg) { align-items: flex-end; }
+.over-score:has(.dg) small { margin-bottom: 6px; }
+/* 下の折り返し (83〜100% = 216〜260pt): ベスト */
+.over-best { top: 238px; font-size: 18px; font-weight: 900; letter-spacing: .04em; min-height: 1.4em; }
 
-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: .95em;
+/* ボタンは文字入りの絵 */
+.paper-btn {
+  display: block;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-position: center;
 }
+.paper-btn:active { transform: translateY(2px); }
+.paper-yellow { width: 273px; height: 61.5px; background-image: url("assets/btn-retry.webp"); }   /* 546 x 123 の半分 */
+.paper-cream  { width: 199px; height: 45px;   background-image: url("assets/btn-menu.webp"); }    /* 398 x 90 の半分 */
 
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: .01ms !important; animation: none !important; }

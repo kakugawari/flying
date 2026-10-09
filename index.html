@@ -2,31 +2,53 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>アプリの雛形</title>
-<meta name="description" content="ビルドなしで動くアプリの雛形">
-<meta name="theme-color" content="#151a2e">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>ふわりバード</title>
+<meta name="description" content="タップで羽ばたいて、柱のすき間をくぐり抜ける一発アクション">
+<meta name="theme-color" content="#70c5ce">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
 
 <div id="app">
-  <header id="topbar">
-    <h1 class="title">アプリの雛形</h1>
-    <div class="topbar-actions">
-      <button type="button" id="btnAction" class="btn btn-primary">ためす</button>
-    </div>
-  </header>
+  <!-- 空: キャンバスの下の背景。色は CSS のグラデーション (ステージごとに app.js が替える)、紙の折り目と粒は絵を重ね合わせで載せる。動かないので毎コマ塗らない -->
+  <div id="sky"></div>
+  <img id="skyPaper" src="./assets/sky-paper.jpg" alt="">
 
-  <main id="stage">
-    <p class="lead">ここにアプリを作る。</p>
-    <p class="result" id="result">—</p>
-    <p class="note">
-      ロジックは <code>src/core.js</code> に、画面は <code>src/app.js</code> に書く。<br>
-      <code>npm test</code> でロジックを、<code>npm run test:ui</code> で画面を確かめる。
-    </p>
-  </main>
+  <canvas id="game" width="430" height="932"></canvas>
+
+  <button type="button" id="btnMute" class="mute" aria-label="サウンド切り替え" aria-pressed="false"></button>
+
+  <!-- タイトル: ロゴ・「タップでスタート」・モード選択の札は絵 (assets/title-*.webp)。ボタンは絵の上に透明な当たりを重ね、
+       ベストの数字だけ本物のテキスト (絵のほうは消してある) -->
+  <section id="vStart" class="sheet sheet-title on">
+    <h1 class="title-logo"><span class="sr-only">ふわりバード</span></h1>
+    <button type="button" id="btnQuick" class="title-start" aria-label="タップでスタート (前回のモード)"></button>
+    <div class="title-panel">
+      <p class="sr-only">あそぶモードをえらんでね</p>
+      <button type="button" id="btnClassic" class="mode-hit mode-classic" aria-label="クラシック むかしながらの一発勝負"></button>
+      <button type="button" id="btnAdventure" class="mode-hit mode-adv" aria-label="アドベンチャー ハート3つとアイテムつき"></button>
+      <span class="mode-best best-classic" id="bestClassic">ベスト 0</span>
+      <span class="mode-best best-adv" id="bestAdventure">ベスト 0</span>
+    </div>
+  </section>
+
+  <!-- ゲームオーバー: 折り紙の札 (絵) の上に、点数などの文字を本物のテキストで重ねる。ボタンは文字入りの絵 -->
+  <section id="vOver" class="sheet sheet-over">
+    <div class="paper-stack">
+      <div class="paper-panel">
+        <h2 class="over-title" id="overTitle">ゲームオーバー</h2>
+        <p class="over-mode" id="overMode"></p>
+        <p class="over-score"><span id="finalScore">0</span><small id="overUnit">てん</small></p>
+        <p class="over-best" id="overBest"></p>
+      </div>
+      <button type="button" id="btnRetry" class="paper-btn paper-yellow"><span class="sr-only">もう一度あそぶ</span></button>
+      <button type="button" id="btnMenu" class="paper-btn paper-cream"><span class="sr-only">モード選択へ</span></button>
+    </div>
+  </section>
 </div>
 
 <script src="./core.js"></script>
