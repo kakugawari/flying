@@ -146,13 +146,17 @@ async function run() {
     ok(menu.c && menu.a, 'モードのボタンが 2 つとも画面の中に見えている');
     ok(menu.m, 'ミュートボタンが画面の中に見えている');
     const idle = await phone.evaluate(async () => {
-      const g = window.__app.game();
-      const y0 = g.birdY;
-      await new Promise((r) => setTimeout(r, 400));
-      return { moved: Math.abs(window.__app.game().birdY - y0), phase: window.__app.game().phase, pipes: window.__app.game().pipes.length };
+      // 周期は約 1.3 秒。揺れの端で測ると差が小さく出るので、1.5 秒のあいだの最大と最小の幅を見る
+      let lo = Infinity, hi = -Infinity;
+      const t0 = performance.now();
+      while (performance.now() - t0 < 1500) {
+        const y = window.__app.game().birdY; lo = Math.min(lo, y); hi = Math.max(hi, y);
+        await new Promise((r) => setTimeout(r, 30));
+      }
+      return { moved: hi - lo, phase: window.__app.game().phase, pipes: window.__app.game().pipes.length };
     });
     ok(idle.phase === 'ready' && idle.pipes === 0, 'タイトルの間は柱が出ず、重力もかからない');
-    ok(idle.moved > 0.5, `タイトルの鳥がふわふわ動いている (${idle.moved.toFixed(1)}px)`);
+    ok(idle.moved > 8, `タイトルの鳥がふわふわ動いている (1.5 秒で ${idle.moved.toFixed(1)}px の幅)`);
 
     // 札の中身が、待っている鳥に重ならない (重なって見えにくかった)
     const overlap = await phone.evaluate(() => {
@@ -235,6 +239,91 @@ async function run() {
     });
     ok(onScreen > 0.5, `鳥の位置に体の黄色が描かれている (${(onScreen * 100).toFixed(0)}%)`);
 
+    // ------------------------------------------------ 柱と床の絵
+    section('柱と床の絵 (折り紙)');
+    await phone.waitForFunction(() => window.__app.pipeSpritesReady() && window.__app.groundArtReady(), null, { timeout: 5000 }).catch(() => {});
+    ok(await phone.evaluate(() => window.__app.pipeSpritesReady() && window.__app.groundArtReady()), '柱と床の絵が読み込まれ、ゲームで使われている');
+    const artInfo = await phone.evaluate(async () => {
+      const load = async (src) => {
+        const img = new Image(); img.src = src; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        return { w: img.width, h: img.height, d: x.getImageData(0, 0, img.width, img.height).data };
+      };
+      const A = (im, x, y) => im.d[(y * im.w + x) * 4 + 3];
+      const isMagenta = (r, g, b) => b > g * 1.5 && r > 120 && g < r * 0.55;
+      const body = await load('assets/pipe-body.png');
+      const capT = await load('assets/pipe-cap-top.png'), capB = await load('assets/pipe-cap-bottom.png');
+      const ground = await load('assets/ground.jpg');
+      const capInfo = (im) => {
+        let first = -1, last = -1, magenta = 0, minX = im.w, maxX = -1;
+        for (let y = 0; y < im.h; y++) for (let x = 0; x < im.w; x++) {
+          const i = (y * im.w + x) * 4;
+          if (im.d[i + 3] > 128) {
+            if (first < 0) first = y;
+            last = y; minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+          }
+          if (im.d[i + 3] > 200 && isMagenta(im.d[i], im.d[i + 1], im.d[i + 2])) magenta++;
+        }
+        return { w: im.w, h: im.h, first, last, magenta, vis: maxX - minX + 1,
+                 corner: A(im, 0, 0) + A(im, im.w - 1, 0) + A(im, 0, im.h - 1) + A(im, im.w - 1, im.h - 1) };
+      };
+      // 胴: 全面が不透明、上端と下端の色の差 (繋ぎ目)
+      let bodyOpaque = true;
+      for (let y = 0; y < body.h; y += 5) for (let x = 0; x < body.w; x++) if (A(body, x, y) < 250) bodyOpaque = false;
+      const rowMean = (im, y) => { const m = [0, 0, 0]; for (let x = 0; x < im.w; x++) for (let k = 0; k < 3; k++) m[k] += im.d[(y * im.w + x) * 4 + k]; return m.map((v) => v / im.w); };
+      const dist = (p, q) => Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) + Math.abs(p[2] - q[2]);
+      const seamBody = dist(rowMean(body, 0), rowMean(body, body.h - 1));
+      // 床: 左端の列と右端の列の差 (鏡のように繋いである = 同じ列) と、となり合う列の差
+      const colMean = (im, x) => { const m = [0, 0, 0]; for (let y = 0; y < im.h; y++) for (let k = 0; k < 3; k++) m[k] += im.d[(y * im.w + x) * 4 + k]; return m.map((v) => v / im.h); };
+      let adj = 0; for (let x = 0; x < 200; x++) adj += dist(colMean(ground, x), colMean(ground, x + 1)); adj /= 200;
+      const seamGround = dist(colMean(ground, 0), colMean(ground, ground.w - 1));
+      let gMagenta = 0, gGreen = 0, gn = 0;
+      for (let i = 0; i < ground.d.length; i += 4 * 13) { gn++; if (isMagenta(ground.d[i], ground.d[i + 1], ground.d[i + 2])) gMagenta++; if (ground.d[i + 1] > ground.d[i] + 15) gGreen++; }
+      return { body: [body.w, body.h], bodyOpaque, seamBody, capT: capInfo(capT), capB: capInfo(capB),
+               ground: [ground.w, ground.h], seamGround, adj, gMagenta, gGreenRate: gGreen / gn };
+    });
+    ok(artInfo.body[0] === 112 && artInfo.bodyOpaque, `胴は幅 112 で、全面が不透明 (${artInfo.body.join('x')})`);
+    ok(artInfo.capT.corner === 0 && artInfo.capB.corner === 0, '口の四隅が透明 (背景が残っていない)');
+    ok(artInfo.capT.magenta === 0 && artInfo.capB.magenta === 0, `口にマゼンタの名残が無い (${artInfo.capT.magenta}/${artInfo.capB.magenta} 画素)`);
+    ok(artInfo.capB.first <= 2 && artInfo.capT.h - 1 - artInfo.capT.last <= 2,
+      `口の絵の縁が、当たりの縁に合う余白で切ってある (下の口の上 ${artInfo.capB.first}px / 上の口の下 ${artInfo.capT.h - 1 - artInfo.capT.last}px)`);
+    ok(artInfo.capT.vis / 112 > 1.1 && artInfo.capT.vis / 112 < 1.45 && artInfo.capB.vis / 112 > 1.1 && artInfo.capB.vis / 112 < 1.45,
+      `口は胴より少し広い (口 ${artInfo.capT.vis}/${artInfo.capB.vis}px ÷ 胴 112px)`);
+    ok(artInfo.seamBody <= 24, `胴を縦に繋いだ継ぎ目の色の差が小さい (${artInfo.seamBody.toFixed(1)})`);
+    ok(artInfo.ground[0] === 800 && artInfo.ground[1] === 180, `床の絵は 800×180 (${artInfo.ground.join('x')})`);
+    ok(artInfo.seamGround <= Math.max(6, artInfo.adj * 2), `床を横に繋いだ継ぎ目が出ない (端の列の差 ${artInfo.seamGround.toFixed(1)} / となり合う列 ${artInfo.adj.toFixed(1)})`);
+    ok(artInfo.gMagenta === 0 && artInfo.gGreenRate > 0.8, `床にマゼンタの名残が無く、緑で埋まっている (緑 ${(artInfo.gGreenRate * 100).toFixed(0)}%)`);
+
+    // 画面に出た柱と床。当たりの縁と同じ位置に見えるか、夜は沈むか
+    const scene = await phone.evaluate(async () => {
+      const shoot = async (score, groundOffset) => {
+        window.__app.startGame('classic');
+        const g = window.__app.game();
+        g.phase = 'play'; g.score = score; g.groundOffset = groundOffset || 0;
+        g.pipes.push({ x: 200, top: 300, gap: 180, scored: false });
+        g.birdY = 700; g.vy = 0;
+        window.__app.render();
+        const c = document.getElementById('game'), k = c.width / 430, x = c.getContext('2d');
+        const px = (xx, yy) => x.getImageData(Math.round(xx * k), Math.round(yy * k), 1, 1).data;
+        const orange = (d) => d[0] - d[2] > 40;   // 空は青が強い。橙〜暗い橙は赤が強い
+        // 下の柱: 縁 480pt の少し上から下へ見て、最初に橙が出る所
+        let botEdge = -1; for (let y = 450; y < 520; y += 0.5) if (orange(px(228, y))) { botEdge = y; break; }
+        // 上の柱: 縁 300pt の少し下から上へ見て、最初に橙が出る所
+        let topEdge = -1; for (let y = 330; y > 270; y -= 0.5) if (orange(px(228, y))) { topEdge = y; break; }
+        const d = x.getImageData(Math.round(210 * k), Math.round(600 * k), Math.round(30 * k), Math.round(30 * k)).data;
+        let s = 0, n = 0; for (let i = 0; i < d.length; i += 4) { s += d[i] + d[i + 1] + d[i + 2]; n++; }
+        const gd = px(100, 880);
+        return { botEdge, topEdge, lum: s / n / 3, ground: [gd[0], gd[1], gd[2]] };
+      };
+      const day = await shoot(0), deep = await shoot(35);
+      return { day, deep };
+    });
+    ok(Math.abs(scene.day.botEdge - 480) <= 2, `下の柱の口の縁が、当たりの縁 (480pt) に見える (${scene.day.botEdge}pt)`);
+    ok(Math.abs(scene.day.topEdge - 300) <= 2, `上の柱の口の縁が、当たりの縁 (300pt) に見える (${scene.day.topEdge}pt)`);
+    ok(scene.deep.lum < scene.day.lum * 0.8, `夜は柱が沈んで暗い (朝 ${scene.day.lum.toFixed(0)} → 夜 ${scene.deep.lum.toFixed(0)})`);
+    ok(scene.day.ground[1] > scene.day.ground[0] + 20 && scene.day.ground[1] > scene.day.ground[2] + 20, `床が緑で描かれている (${scene.day.ground.join(',')})`);
+
     // ------------------------------------------------ 自動操縦で実際に遊ぶ
     section('自動操縦で遊ぶ (実際のタップ操作で 15 点)');
     await phone.evaluate(() => window.__app.startGame('classic'));
@@ -316,24 +405,46 @@ async function run() {
     ok(!pausedOk.paused && pausedOk.moved, '戻ってタップすると再開する');
 
     // ------------------------------------------------ 遅い端末 (CPU 4 倍遅)
+    // 機械ごとに速さが違う (同じ版が 50fps の日も 35fps の日もある)。絶対値だけで線を引かず、
+    // 同じ実行の中で「絵を止めた版」と交互に測り、絵を足したぶんの落ち込みを割合で見る
     section('遅い端末');
-    const cdp = await context.newCDPSession(phone);
-    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-    const fps = await phone.evaluate(async () => {
-      window.__app.startGame('adventure');
-      window.__app.step(1);
-      const g = window.__app.game();
-      g.phase = 'play'; g.score = 45; g.hearts = 99; g.hurtUntil = 1e9; g.starUntil = 1e9;   // 夜空・オーロラ・星の最も重い絵
-      let frames = 0;
-      const t0 = performance.now();
-      await new Promise((resolve) => {
-        const tick = () => { frames++; if (performance.now() - t0 >= 3000) resolve(); else requestAnimationFrame(tick); };
-        requestAnimationFrame(tick);
+    const measureFps = async (pg) => {
+      await pg.bringToFront();
+      return pg.evaluate(async () => {
+        window.__app.startGame('adventure');
+        window.__app.step(1);
+        const g = window.__app.game();
+        g.phase = 'play'; g.score = 45; g.hearts = 99; g.hurtUntil = 1e9; g.starUntil = 1e9;   // 夜空・オーロラ・星の最も重い絵
+        for (let i = 0; i < 400; i++) { g.birdY = 440; g.vy = 0; window.__app.step(1); }      // 柱が何本も出ている
+        let frames = 0;
+        const t0 = performance.now();
+        await new Promise((resolve) => {
+          const tick = () => { frames++; if (performance.now() - t0 >= 2500) resolve(); else requestAnimationFrame(tick); };
+          requestAnimationFrame(tick);
+        });
+        return frames / 2.5;
       });
-      return frames / 3;
-    });
-    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
-    ok(fps >= 40, `CPU 4 倍遅でも 40fps 以上 (${fps.toFixed(0)}fps)`);
+    };
+    const plainCtx = await browser.newContext(PHONE);
+    const plain = await plainCtx.newPage();
+    await plain.route('**/assets/*', (route) => route.abort());     // 絵を読ませない = これまでの描き方
+    await plain.goto(URL);
+    await plain.waitForFunction(() => window.__app);
+    await phone.reload();
+    await phone.waitForFunction(() => window.__app.pipeSpritesReady() && window.__app.groundArtReady() && window.__app.birdSpritesReady());
+    const cdpA = await context.newCDPSession(phone), cdpB = await plainCtx.newCDPSession(plain);
+    await cdpA.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    await cdpB.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    const withArt = [], without = [];
+    for (let i = 0; i < 4; i++) { withArt.push(await measureFps(phone)); without.push(await measureFps(plain)); }
+    await cdpA.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    await cdpB.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    await plainCtx.close();
+    const med = (a) => a.slice().sort((x, y) => x - y)[a.length >> 1];
+    const fa = med(withArt), fb = med(without);
+    // 実測 (同じ実行で交互に): 絵あり ÷ 絵なし = 0.81〜0.94 (平均 0.88)。線はその下の 0.75
+    ok(fa >= 0.75 * fb, `絵を足しても、絵なしの 75% 以上の速さ (絵あり ${fa.toFixed(0)}fps / 絵なし ${fb.toFixed(0)}fps。${withArt.map((v) => v.toFixed(0)).join('/')} 対 ${without.map((v) => v.toFixed(0)).join('/')})`);
+    ok(fa >= 25, `CPU 4 倍遅で 25fps 以上 (${fa.toFixed(0)}fps)`);
 
     await context.close();
 

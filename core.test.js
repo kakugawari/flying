@@ -159,3 +159,15 @@ test('クラシックの隙間・速さは 180→140 / 2.1→2.5', () => {
   s.score = 100;
   assert.strictEqual(Core.gapFor(s), 140);
 });
+
+test('柱の沈め具合: どのステージでも 0〜1。昼より夜のほうが深く、色と同じく連続して変わる', () => {
+  assert.strictEqual(Core.palette(0).shade, 0);
+  assert.ok(Core.palette(35).shade > Core.palette(15).shade);
+  let prev = Core.palette(0).shade;
+  for (let sc = 1; sc <= 80; sc++) {
+    const s = Core.palette(sc).shade;
+    assert.ok(s >= 0 && s <= 1);
+    assert.ok(Math.abs(s - prev) <= 0.05, `${sc} 点で急に変わった`);
+    prev = s;
+  }
+});

@@ -40,6 +40,47 @@
     img.onload = function () { birdImgs[i] = img; birdLoaded++; };
     img.src = src;
   });
+  // 柱と床の絵 (折り紙)。どれも 2 倍の画素で作ってある。読めない物は、これまでの描き方のまま
+  const art = {};
+  [['body', 'assets/pipe-body.png'], ['capTop', 'assets/pipe-cap-top.png'],
+   ['capBottom', 'assets/pipe-cap-bottom.png'], ['ground', 'assets/ground.jpg']].forEach(function (a) {
+    const img = new Image();
+    img.onload = function () { art[a[0]] = img; };
+    img.src = a[1];
+  });
+  const CAP_PAD = 0.5;                  // 口の絵の縁の外側の余白 (pt)。当たりの縁はここから
+  const GROUND_PERIOD = 400;            // 床の絵 1 枚ぶん (pt)。鏡のように繋いである
+  // 実画素の大きさに合わせた絵を、段階ごとに 1 回だけ作る。毎コマ縮小して貼ると遅い端末で重い (柱だけで 5fps 落ちた)
+  // 胴は画面いっぱいの長さの 1 本にしておき、柱ごとに必要な長さを切って等倍で貼る
+  const devArt = {};
+  function dev() { return canvas.width / W; }
+  function sprite(name, shade) {
+    const img = art[name], k = dev();
+    const lv = Math.round(Math.min(1, shade) * 8);
+    const key = name + lv + '@' + k;
+    if (devArt[key]) return devArt[key];
+    const wpt = name === 'body' ? PIPE_W : name === 'ground' ? GROUND_PERIOD : img.width / 2;
+    const hpt = name === 'body' ? H : name === 'ground' ? GROUND : img.height / 2;
+    const c = document.createElement('canvas');
+    c.width = Math.round(wpt * k); c.height = Math.round(hpt * k);
+    const x = c.getContext('2d');
+    if (name === 'body') {
+      const th = img.height / 2 * k;
+      for (let y = 0; y < c.height; y += th - 0.5) x.drawImage(img, 0, y, c.width, th);
+    } else {
+      x.drawImage(img, 0, 0, c.width, c.height);
+    }
+    if (lv) {
+      x.globalCompositeOperation = 'source-atop';
+      x.fillStyle = 'rgba(16,22,64,' + (lv / 8 * 0.75).toFixed(3) + ')';
+      x.fillRect(0, 0, c.width, c.height);
+    }
+    devArt[key] = c;
+    return c;
+  }
+  const snap = function (v) { const k = dev(); return Math.round(v * k) / k; };   // 実画素にそろえて、等倍のまま貼る
+  function pipeArtReady() { return !!(art.body && art.capTop && art.capBottom); }
+
   const BIRD_FRAMES = [0, 1, 2, 1];   // 羽: 上 → 中 → 下 → 中
   const BIRD_W = 107 / 2, BIRD_H = 113 / 2;   // 体の中心が絵の中心 (2 倍で作ってある)
 
@@ -274,6 +315,11 @@
 
   function drawGround(pal) {
     const top = H - GROUND;
+    if (art.ground) {
+      const g = sprite('ground', pal.shade), k = dev();
+      for (let x = -(game.groundOffset % GROUND_PERIOD); x < W; x += GROUND_PERIOD) ctx.drawImage(g, snap(x), top, g.width / k, g.height / k);
+      return;
+    }
     ctx.fillStyle = rgb(pal.ground[0]);
     ctx.fillRect(0, top, W, GROUND);
     ctx.fillStyle = rgb(pal.ground[1]);
@@ -286,7 +332,39 @@
     ctx.fillRect(0, top, W, 3);
   }
 
+  // 胴を y0 から y1 まで貼る (画面いっぱいの長さの 1 本から切り取る)
+  function drawBody(x, y0, y1, shade) {
+    if (y1 <= y0) return;
+    const body = sprite('body', shade), k = dev();
+    const sh = Math.round((y1 - y0) * k);
+    blit(body, 0, 0, body.width, sh, x, y0);
+  }
+  function drawCap(c, x, y) { blit(c, 0, 0, c.width, c.height, x, y); }
+  // 画面の拡大をいったん外し、実画素の座標のまま貼る。拡大をかけたまま貼ると、計算の誤差で
+  // 「等倍」と見なされず、補間つきの重い貼り方になる (遅い端末で柱だけ 5fps 落ちた)
+  function blit(img, sx, sy, sw, sh, x, y) {
+    const k = dev();
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(img, sx, sy, sw, sh, Math.round(x * k), Math.round(y * k), sw, sh);
+    ctx.restore();
+  }
+
   function drawPipe(p, pal) {
+    if (pipeArtReady()) {
+      const sh = pal.shade;
+      const capT = sprite('capTop', sh), capB = sprite('capBottom', sh), k = dev();
+      const tw = capT.width / k, th = capT.height / k, bw = capB.width / k, bh = capB.height / k;
+      // 上の柱: 口は下の縁 (p.top) の少し外側まで。胴は画面の上から口の手前まで
+      const topY = p.top + CAP_PAD - th;
+      drawBody(p.x, 0, topY + 0.5, sh);
+      drawCap(capT, p.x + PIPE_W / 2 - tw / 2, topY);
+      // 下の柱: 口は上の縁 (p.top + p.gap) から。胴は口の下から地面まで
+      const botY = p.top + p.gap - CAP_PAD;
+      drawBody(p.x, botY + bh - 0.5, H - GROUND, sh);
+      drawCap(capB, p.x + PIPE_W / 2 - bw / 2, botY);
+      return;
+    }
     const main = rgb(pal.pipe[0]), dark = rgb(pal.pipe[1]), lip = rgb(pal.pipe[2]);
     const bottom = p.top + p.gap, bh = H - GROUND - bottom;
     ctx.fillStyle = main; ctx.fillRect(p.x, 0, PIPE_W, p.top);
@@ -472,7 +550,9 @@
       render: render,
       startGame: startGame,
       showMenu: showMenu,
-      birdSpritesReady: function () { return birdLoaded === 3; }
+      birdSpritesReady: function () { return birdLoaded === 3; },
+      pipeSpritesReady: pipeArtReady,
+      groundArtReady: function () { return !!art.ground; }
     };
   }
 

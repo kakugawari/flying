@@ -45,12 +45,12 @@
 
   // 10 点ごとの空。隣の段へ 1 点ずつ色を混ぜる
   const STAGES = [
-    { name: '朝',       sky: [[112, 197, 206], [188, 230, 236]], pipe: [[236, 140, 106], [201, 107, 78], [217, 120, 90]], ground: [[222, 216, 149], [210, 176, 72]], cloud: 0.7,  stars: 0,   moon: 0,   aurora: 0 },
-    { name: '昼',       sky: [[64, 150, 224], [160, 214, 248]],  pipe: [[95, 182, 90], [62, 138, 59], [79, 163, 74]],     ground: [[190, 214, 110], [160, 140, 58]], cloud: 0.85, stars: 0,   moon: 0,   aurora: 0 },
-    { name: '夕やけ',   sky: [[240, 110, 80], [255, 205, 120]],  pipe: [[160, 82, 106], [111, 52, 72], [138, 68, 89]],    ground: [[204, 160, 100], [150, 100, 60]], cloud: 0.55, stars: 0,   moon: 0,   aurora: 0 },
-    { name: '夜',       sky: [[20, 28, 70], [58, 66, 128]],      pipe: [[64, 68, 112], [38, 41, 78], [52, 56, 96]],       ground: [[86, 96, 116], [54, 60, 86]],     cloud: 0.18, stars: 0.7, moon: 1,   aurora: 0 },
-    { name: '星空',     sky: [[6, 8, 32], [30, 36, 86]],         pipe: [[46, 49, 90], [26, 28, 54], [38, 41, 74]],        ground: [[62, 68, 94], [38, 42, 64]],      cloud: 0.06, stars: 1,   moon: 1,   aurora: 0 },
-    { name: 'オーロラ', sky: [[4, 22, 44], [12, 66, 78]],        pipe: [[32, 80, 94], [18, 50, 58], [26, 68, 80]],        ground: [[42, 84, 94], [26, 52, 62]],      cloud: 0.04, stars: 1,   moon: 0.6, aurora: 1 }
+    { name: '朝',       sky: [[112, 197, 206], [188, 230, 236]], pipe: [[236, 140, 106], [201, 107, 78], [217, 120, 90]], ground: [[222, 216, 149], [210, 176, 72]], shade: 0, cloud: 0.7,  stars: 0,   moon: 0,   aurora: 0 },
+    { name: '昼',       sky: [[64, 150, 224], [160, 214, 248]],  pipe: [[95, 182, 90], [62, 138, 59], [79, 163, 74]],     ground: [[190, 214, 110], [160, 140, 58]], shade: 0, cloud: 0.85, stars: 0,   moon: 0,   aurora: 0 },
+    { name: '夕やけ',   sky: [[240, 110, 80], [255, 205, 120]],  pipe: [[160, 82, 106], [111, 52, 72], [138, 68, 89]],    ground: [[204, 160, 100], [150, 100, 60]], shade: 0.12, cloud: 0.55, stars: 0,   moon: 0,   aurora: 0 },
+    { name: '夜',       sky: [[20, 28, 70], [58, 66, 128]],      pipe: [[64, 68, 112], [38, 41, 78], [52, 56, 96]],       ground: [[86, 96, 116], [54, 60, 86]],     shade: 0.42, cloud: 0.18, stars: 0.7, moon: 1,   aurora: 0 },
+    { name: '星空',     sky: [[6, 8, 32], [30, 36, 86]],         pipe: [[46, 49, 90], [26, 28, 54], [38, 41, 74]],        ground: [[62, 68, 94], [38, 42, 64]],      shade: 0.58, cloud: 0.06, stars: 1,   moon: 1,   aurora: 0 },
+    { name: 'オーロラ', sky: [[4, 22, 44], [12, 66, 78]],        pipe: [[32, 80, 94], [18, 50, 58], [26, 68, 80]],        ground: [[42, 84, 94], [26, 52, 62]],      shade: 0.5, cloud: 0.04, stars: 1,   moon: 0.6, aurora: 1 }
   ];
 
   function mulberry32(seed) {
@@ -80,6 +80,7 @@
       sky: [lerpRgb(a.sky[0], b.sky[0], t), lerpRgb(a.sky[1], b.sky[1], t)],
       pipe: [0, 1, 2].map(function (i) { return lerpRgb(a.pipe[i], b.pipe[i], t); }),
       ground: [lerpRgb(a.ground[0], b.ground[0], t), lerpRgb(a.ground[1], b.ground[1], t)],
+      shade: lerp(a.shade, b.shade, t),
       cloud: lerp(a.cloud, b.cloud, t),
       stars: lerp(a.stars, b.stars, t),
       moon: lerp(a.moon, b.moon, t),
