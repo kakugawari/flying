@@ -20,8 +20,6 @@
     overBest: document.getElementById('overBest'),
     overTitle: document.getElementById('overTitle'),
     overUnit: document.getElementById('overUnit'),
-    lblRetry: document.getElementById('lblRetry'),
-    lblMenu: document.getElementById('lblMenu'),
     bestClassic: document.getElementById('bestClassic'),
     bestAdventure: document.getElementById('bestAdventure'),
     mute: document.getElementById('btnMute'),
@@ -153,7 +151,7 @@
     else if (name === 'hit') tone(220, 0.2, 'sawtooth', 0.2, 0, 90);
     else if (name === 'over') tone(300, 0.45, 'sawtooth', 0.22, 0, 70);
   }
-  function showMute() { els.mute.textContent = muted ? '🔇' : '🔊'; }
+  function showMute() { els.mute.classList.toggle('off', muted); els.mute.setAttribute('aria-pressed', String(!muted)); }
 
   // ---- 流れの切り替え ----
   function startGame(m) {
@@ -583,8 +581,6 @@
     showBests();
     setPaperText(els.overTitle, 'ゲームオーバー');
     setPaperText(els.overUnit, 'てん');
-    setPaperText(els.lblRetry, 'もう一度あそぶ');
-    setPaperText(els.lblMenu, 'モード選択へ');
     game = C.create(mode);
     requestAnimationFrame(frame);
 

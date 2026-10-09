@@ -69,16 +69,26 @@ body {
   position: absolute;
   top: calc(var(--safe-top) + 8px);
   right: 12px;
-  width: 44px;
-  height: 44px;
+  width: 46.5px;               /* 絵は 2 倍の画素 (93px) */
+  height: 46.5px;
   border: 0;
-  border-radius: 22px;
-  background: rgba(0, 0, 0, .25);
-  font-size: 20px;
-  line-height: 44px;
   padding: 0;
+  background: url("assets/btn-mute.webp") center / 100% 100% no-repeat transparent;
+  filter: drop-shadow(0 2px 2px rgba(40, 24, 8, .35));
   cursor: pointer;
 }
+/* 切ってあるとき: 斜めの紙の帯を重ねる (絵は替えない。文字で書き換えると絵が消える) */
+.mute.off::after {
+  content: "";
+  position: absolute;
+  left: 8px; right: 8px; top: calc(50% - 2px);
+  height: 4px;
+  border-radius: 2px;
+  background: #6b4a33;
+  box-shadow: 0 0 0 1.5px rgba(248, 241, 226, .95);
+  transform: rotate(-42deg);
+}
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* 最初と終わりの札。出ていないときは何も受けない */
 .sheet {
@@ -129,13 +139,12 @@ body {
 .btn-adv { background: #ffe4dc; }
 .btn-adv .mode-name { color: var(--adv); }
 
-/* ---- ゲームオーバー: 折り紙の札 (見本は CLAUDE.md の「絵の世界観」) ---- */
+/* ---- ゲームオーバー: 折り紙の札 (絵 assets/panel.webp) の上に、本物のテキストを重ねる ---- */
 .sheet-over {
   background: rgba(20, 40, 60, .10);   /* 後ろのゲーム (止まった鳥・柱・雲) が見えるように、ほとんど暗くしない */
   padding: 0 0 70px;
   gap: 0;
 }
-/* 影は 3 つの紙をまとめて落とす (clip-path の外へは box-shadow が出ないため、親に filter) */
 .paper-stack {
   display: flex;
   flex-direction: column;
@@ -145,92 +154,64 @@ body {
 }
 
 /* 切り紙の文字: 薄茶の紙。縁を明るく、下に濃い茶の厚み、その下にやわらかい影 */
-.paper-panel, .paper-btn {
+.paper-panel {
   --cut: #c39a6a;
   --cut-edge: #a07a50;
+  position: relative;
+  width: 332.5px;              /* 絵は 2 倍の画素 (665 x 520)。折り目は上から 46% と 83% のところ */
+  height: 260px;
+  background: url("assets/panel.webp") center / 100% 100% no-repeat transparent;
 }
-.over-title, .over-mode, .over-score, .over-best, .paper-label {
+.over-title, .over-mode, .over-score, .over-best {
+  position: absolute;
+  left: 0; right: 14px;        /* 絵の右の端に折り返しがあるので、紙の面の中心 (少し左) に合わせる */
+  margin: 0;
+  text-align: center;
+  white-space: nowrap;
   color: var(--cut);
   text-shadow:
     0 -1px 0 rgba(255, 255, 255, .75),
     0 1px 0 var(--cut-edge),
     0 2px 0 var(--cut-edge),
     0 4px 5px rgba(70, 40, 10, .22);
+  transform: translateY(-50%);
 }
 .pl { display: inline-block; }   /* 1 字ずつ、ほんの少し傾けて手で切った感じにする (app.js が付ける) */
-
-.paper-panel {
-  position: relative;
-  width: 300px;
-  padding: 22px 16px 20px;
-  text-align: center;
-  /* 角を斜めに切った紙 */
-  clip-path: polygon(22px 0, calc(100% - 6px) 5px, 100% 24px, calc(100% - 3px) calc(100% - 20px), calc(100% - 24px) 100%, 8px calc(100% - 4px), 0 calc(100% - 26px), 4px 20px);
-  background:
-    /* 四隅の折り返し */
-    linear-gradient(135deg, rgba(120, 88, 48, .16) 0 26px, transparent 26px) left top / 52px 52px no-repeat,
-    linear-gradient(225deg, rgba(255, 255, 255, .45) 0 24px, transparent 24px) right top / 52px 52px no-repeat,
-    linear-gradient(45deg, rgba(120, 88, 48, .14) 0 28px, transparent 28px) left bottom / 56px 56px no-repeat,
-    linear-gradient(315deg, rgba(255, 255, 255, .38) 0 26px, transparent 26px) right bottom / 52px 52px no-repeat,
-    /* 折り目 (「クラシック」の下と、点数の下) の影と光 */
-    linear-gradient(180deg, transparent 38%, rgba(110, 80, 40, .20) 38% calc(38% + 1px), rgba(255, 255, 255, .5) calc(38% + 1px) calc(38% + 2px), rgba(110, 80, 40, .07) calc(38% + 2px) calc(38% + 9px), transparent calc(38% + 9px)),
-    linear-gradient(180deg, transparent 79%, rgba(110, 80, 40, .22) 79% calc(79% + 1px), rgba(255, 255, 255, .5) calc(79% + 1px) calc(79% + 2px), transparent calc(79% + 2px)),
-    /* 縦の折り目 (上の帯だけ) */
-    linear-gradient(90deg, transparent calc(50% - 1px), rgba(110, 80, 40, .12) calc(50% - 1px) 50%, rgba(255, 255, 255, .4) 50% calc(50% + 1px), transparent calc(50% + 1px)) top / 100% 38% no-repeat,
-    /* 帯ごとに紙の明るさを変える (折って重ねた面) */
-    linear-gradient(180deg, #f8f1e2 0 38%, #f0e6d1 38% 79%, #e9dcc3 79% 100%);
-}
-/* 紙の粒 (うっすら) */
-.paper-panel::before, .paper-btn::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .3 0 0 0 0 .18 0 0 0 .13 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-.over-title { margin: 0 0 4px; font-size: 33px; font-weight: 900; letter-spacing: .02em; line-height: 1.25; white-space: nowrap; }
-.over-mode { margin: 0 0 6px; font-size: 17px; font-weight: 800; letter-spacing: .08em; padding-top: 12px; }
+/* 上の面 (0〜46%): 題字とモード名。折り目 (46% = 120pt) の上に収める */
+.over-title { top: 50px;  font-size: 34px; font-weight: 900; letter-spacing: .02em; line-height: 1.2; }
+.over-mode  { top: 94px;  font-size: 17px; font-weight: 800; letter-spacing: .08em; }
+/* 中の面 (46〜83%): 点数 */
 .over-score {
-  margin: 0;
-  font-size: 88px;
+  top: 168px;
+  display: flex;               /* 数字と「てん」を同じ行の基準線にそろえ、枠の高さを字の高さに詰める */
+  align-items: baseline;
+  justify-content: center;
+  height: 84px;
+  font-size: 80px;
   font-weight: 900;
-  line-height: 1.05;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
   --cut: #94603f;              /* 点数は濃い茶 */
   --cut-edge: #5f3a22;
 }
-.over-score small { font-size: 28px; margin-left: 6px; --cut: #c39a6a; color: var(--cut); }
-.over-best { margin: 4px 0 0; min-height: 1.5em; font-size: 18px; font-weight: 900; letter-spacing: .04em; padding-top: 14px; }
+.over-score small { font-size: 28px; margin-left: 6px; color: #c39a6a; --cut-edge: #a07a50; }
+/* 下の折り返し (83〜100% = 216〜260pt): ベスト */
+.over-best { top: 238px; font-size: 18px; font-weight: 900; letter-spacing: .04em; min-height: 1.4em; }
 
-/* 紙のボタン */
+/* ボタンは文字入りの絵 */
 .paper-btn {
-  position: relative;
   display: block;
-  width: 252px;
-  height: 56px;
-  padding: 0;
   border: 0;
-  font: inherit;
+  padding: 0;
   cursor: pointer;
-  clip-path: polygon(12px 0, 100% 4px, calc(100% - 10px) 100%, 0 calc(100% - 5px));
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-position: center;
 }
 .paper-btn:active { transform: translateY(2px); }
-.paper-label { position: relative; font-size: 21px; font-weight: 900; letter-spacing: .06em; }
-.paper-yellow {
-  --cut: #b9884a; --cut-edge: #8b6330;
-  background:
-    linear-gradient(135deg, rgba(120, 80, 20, .16) 0 18px, transparent 18px) left top / 36px 36px no-repeat,
-    linear-gradient(180deg, transparent 50%, rgba(120, 80, 20, .18) 50% calc(50% + 1px), rgba(255, 255, 255, .35) calc(50% + 1px) calc(50% + 2px), transparent calc(50% + 2px)),
-    linear-gradient(180deg, #f6c14a 0 50%, #eeaa30 50% 100%);
-}
-.paper-cream {
-  --cut: #a77f55; --cut-edge: #7d5a37;
-  background:
-    linear-gradient(225deg, rgba(120, 88, 48, .14) 0 18px, transparent 18px) right top / 36px 36px no-repeat,
-    linear-gradient(180deg, transparent 50%, rgba(110, 80, 40, .16) 50% calc(50% + 1px), rgba(255, 255, 255, .5) calc(50% + 1px) calc(50% + 2px), transparent calc(50% + 2px)),
-    linear-gradient(180deg, #f8f1e2 0 50%, #efe4ce 50% 100%);
-}
+.paper-yellow { width: 273px; height: 61.5px; background-image: url("assets/btn-retry.webp"); }   /* 546 x 123 の半分 */
+.paper-cream  { width: 199px; height: 45px;   background-image: url("assets/btn-menu.webp"); }    /* 398 x 90 の半分 */
 
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: .01ms !important; animation: none !important; }

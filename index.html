@@ -20,7 +20,7 @@
 
   <canvas id="game" width="430" height="932"></canvas>
 
-  <button type="button" id="btnMute" class="mute" aria-label="サウンド切り替え">🔊</button>
+  <button type="button" id="btnMute" class="mute" aria-label="サウンド切り替え" aria-pressed="false"></button>
 
   <section id="vStart" class="sheet on">
     <h1 class="logo">ふわりバード</h1>
@@ -37,7 +37,7 @@
     </button>
   </section>
 
-  <!-- ゲームオーバー: 折り紙の札とボタン。紙の質感は CSS で作り、点数などの文字は本物のテキストのまま -->
+  <!-- ゲームオーバー: 折り紙の札 (絵) の上に、点数などの文字を本物のテキストで重ねる。ボタンは文字入りの絵 -->
   <section id="vOver" class="sheet sheet-over">
     <div class="paper-stack">
       <div class="paper-panel">
@@ -46,8 +46,8 @@
         <p class="over-score"><span id="finalScore">0</span><small id="overUnit">てん</small></p>
         <p class="over-best" id="overBest"></p>
       </div>
-      <button type="button" id="btnRetry" class="paper-btn paper-yellow"><span class="paper-label" id="lblRetry">もう一度あそぶ</span></button>
-      <button type="button" id="btnMenu" class="paper-btn paper-cream"><span class="paper-label" id="lblMenu">モード選択へ</span></button>
+      <button type="button" id="btnRetry" class="paper-btn paper-yellow"><span class="sr-only">もう一度あそぶ</span></button>
+      <button type="button" id="btnMenu" class="paper-btn paper-cream"><span class="sr-only">モード選択へ</span></button>
     </div>
   </section>
 </div>

@@ -208,6 +208,35 @@ async function run() {
     ok(sheetInfo.scoreLum < 0.5, `点数は札の紙より濃い茶 (明るさ ${sheetInfo.scoreLum.toFixed(2)})`);
     ok(sheetInfo.letters === 7, `題字が 1 字ずつの切り紙になっている (${sheetInfo.letters} 字)`);
 
+    // 札の絵の上に、文字が折り目の面ごとに収まる (折り目は上から 46% と 83%)。折り目が文字の真上を通ると読みにくい
+    const zones = await phone.evaluate(() => {
+      const panel = document.querySelector('#vOver .paper-panel').getBoundingClientRect();
+      const rel = (id) => { const r = document.getElementById(id).getBoundingClientRect(); return { top: r.top - panel.top, bottom: r.bottom - panel.top, left: r.left - panel.left, right: r.right - panel.left }; };
+      return { h: panel.height, w: panel.width, title: rel('overTitle'), mode: rel('overMode'), score: rel('finalScore'), best: rel('overBest') };
+    });
+    const c1 = zones.h * 0.46, c2 = zones.h * 0.83;
+    ok(zones.title.bottom < c1 - 2 && zones.mode.bottom < c1 - 2, `題字とモード名が、上の折り目 (${c1.toFixed(0)}pt) より上の面に収まる (下端 ${zones.title.bottom.toFixed(0)} / ${zones.mode.bottom.toFixed(0)})`);
+    ok(zones.score.top > c1 + 2 && zones.score.bottom < c2 - 2, `点数が、中の面 (${c1.toFixed(0)}〜${c2.toFixed(0)}pt) に収まる (${zones.score.top.toFixed(0)}〜${zones.score.bottom.toFixed(0)})`);
+    ok(zones.best.top > c2 - 2 && zones.best.bottom <= zones.h, `ベストが、下の折り返し (${c2.toFixed(0)}pt〜) に収まる (${zones.best.top.toFixed(0)}〜${zones.best.bottom.toFixed(0)})`);
+    ok(zones.title.left >= 0 && zones.title.right <= zones.w, `題字が札の幅に収まる (${zones.title.left.toFixed(0)}〜${zones.title.right.toFixed(0)} / ${zones.w.toFixed(0)}pt)`);
+
+    // 札・ボタン・ミュートの絵: 読み込め、四隅が透明で、背景の赤紫が残っていない
+    const uiArt = await phone.evaluate(async () => {
+      const out = {};
+      for (const [k, src] of [['panel', 'assets/panel.webp'], ['retry', 'assets/btn-retry.webp'], ['menu', 'assets/btn-menu.webp'], ['mute', 'assets/btn-mute.webp']]) {
+        const img = new Image(); img.src = src; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        const d = x.getImageData(0, 0, img.width, img.height).data, A = (xx, yy) => d[(yy * img.width + xx) * 4 + 3];
+        let magenta = 0, op = 0;
+        for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200) { op++; if (d[i + 2] > d[i + 1] * 1.5 && d[i] > 120 && d[i + 1] < d[i] * 0.55) magenta++; }
+        out[k] = { w: img.width, h: img.height, corner: A(0, 0) + A(img.width - 1, 0) + A(0, img.height - 1) + A(img.width - 1, img.height - 1), magenta, mid: A(img.width >> 1, img.height >> 1) };
+      }
+      return out;
+    });
+    ok(uiArt.panel.w === 665 && uiArt.panel.h === 520 && uiArt.retry.w === 546 && uiArt.menu.w === 398 && uiArt.mute.w === 93, '札・ボタン・ミュートの絵が、決めた大きさで読み込める (2 倍の画素)');
+    ok(Object.values(uiArt).every((a) => a.corner === 0 && a.magenta === 0 && a.mid === 255), `絵の四隅が透明・中心が不透明・背景の赤紫の名残が無い (赤紫 ${Object.values(uiArt).map((a) => a.magenta).join('/')} 画素)`);
+
     // ------------------------------------------------ 鳥の絵
     section('鳥の絵 (折り紙)');
     await phone.waitForFunction(() => window.__app.birdSpritesReady(), null, { timeout: 5000 }).catch(() => {});
@@ -309,6 +338,19 @@ async function run() {
     ok(artInfo.ground[0] === 800 && artInfo.ground[1] === 180, `床の絵は 800×180 (${artInfo.ground.join('x')})`);
     ok(artInfo.seamGround <= Math.max(6, artInfo.adj * 2), `床を横に繋いだ継ぎ目が出ない (端の列の差 ${artInfo.seamGround.toFixed(1)} / となり合う列 ${artInfo.adj.toFixed(1)})`);
     ok(artInfo.gMagenta === 0 && artInfo.gGreenRate > 0.8, `床にマゼンタの名残が無く、緑で埋まっている (緑 ${(artInfo.gGreenRate * 100).toFixed(0)}%)`);
+
+    // ミュートボタン: 押すと切り替わり、絵 (紙の八角形) は残る。切ってあるときは印が付く
+    const mute = await phone.evaluate(() => {
+      const b = document.getElementById('btnMute'), bg = () => getComputedStyle(b).backgroundImage;
+      const before = { off: b.classList.contains('off'), bg: bg().includes('btn-mute') };
+      b.click();
+      const after = { off: b.classList.contains('off'), bg: bg().includes('btn-mute'), slash: getComputedStyle(b, '::after').content };
+      b.click();
+      return { before, after, back: b.classList.contains('off'), pressed: b.getAttribute('aria-pressed') };
+    });
+    ok(mute.before.bg && mute.after.bg, 'ミュートボタンの絵が、切り替えても残る');
+    ok(mute.before.off !== mute.after.off && mute.back === mute.before.off, 'ミュートボタンを押すと切り替わり、もう一度押すと戻る');
+    ok(mute.after.slash !== 'none' && mute.after.slash !== 'normal', '切ってあるときは、斜めの帯の印が付く');
 
     // 床の絵を並べた継ぎ目に隙間が出ない。流れる位置をいくつも変えて、床の行が端から端まで不透明か見る
     // (キャンバスは床の外が透明なので、隙間があれば alpha が 0 になる)
@@ -555,7 +597,7 @@ async function run() {
     await oldPage.goto(URL);
     await oldPage.waitForFunction(() => window.__app);
     ok((await oldPage.textContent('#bestClassic')).includes('12'), '残っているベストが表示される');
-    ok((await oldPage.textContent('#btnMute')) === '🔇', 'ミュートの記憶が効いている');
+    ok(await oldPage.evaluate(() => document.getElementById('btnMute').classList.contains('off')), 'ミュートの記憶が効いている (切ってある印が付いている)');
     await oldCtx.close();
 
     // ------------------------------------------------ 保存できないブラウザ
