@@ -18,6 +18,10 @@
     finalScore: document.getElementById('finalScore'),
     overMode: document.getElementById('overMode'),
     overBest: document.getElementById('overBest'),
+    overTitle: document.getElementById('overTitle'),
+    overUnit: document.getElementById('overUnit'),
+    lblRetry: document.getElementById('lblRetry'),
+    lblMenu: document.getElementById('lblMenu'),
     bestClassic: document.getElementById('bestClassic'),
     bestAdventure: document.getElementById('bestAdventure'),
     mute: document.getElementById('btnMute'),
@@ -85,6 +89,20 @@
 
   const BIRD_FRAMES = [0, 1, 2, 1];   // 羽: 上 → 中 → 下 → 中
   const BIRD_W = 107 / 2, BIRD_H = 113 / 2;   // 体の中心が絵の中心 (2 倍で作ってある)
+
+  // ---- 切り紙の文字: 1 字ずつ、ほんの少し傾けて上下にずらす (決まった並びなので、毎回同じ見た目) ----
+  // textContent を入れ替えるので、中の span ごと作り直す。読む側 (textContent) は元の文字のまま
+  function setPaperText(el, text) {
+    el.textContent = '';
+    Array.from(text).forEach(function (ch, i) {
+      const s = document.createElement('span');
+      s.className = 'pl';
+      s.textContent = ch;
+      const rot = (((i * 37 + 11) % 7) - 3) * 0.7, dy = (((i * 53 + 5) % 5) - 2) * 0.6;
+      s.style.transform = 'rotate(' + rot.toFixed(1) + 'deg) translateY(' + dy.toFixed(1) + 'px)';
+      el.appendChild(s);
+    });
+  }
 
   // ---- 保存 (ベストと、前回のモード) ----
   function bestKey(m) { return m === 'adventure' ? 'suisuiBestAdventure' : 'suisuiBestClassic'; }
@@ -171,9 +189,9 @@
     const m = game.mode;
     clearTimeout(overTimer);
     overTimer = setTimeout(function () {
-      els.finalScore.textContent = finalScore;
-      els.overMode.textContent = m === 'adventure' ? 'アドベンチャー' : 'クラシック';
-      els.overBest.textContent = isNew ? '自己ベスト更新！' : 'ベスト: ' + best;
+      setPaperText(els.finalScore, String(finalScore));
+      setPaperText(els.overMode, m === 'adventure' ? 'アドベンチャー' : 'クラシック');
+      setPaperText(els.overBest, isNew ? '自己ベスト更新！' : 'ベスト: ' + best);
       els.vOver.classList.add('on');
     }, 300);
   }
@@ -563,6 +581,10 @@
     } catch (e) { /* ignore */ }
     showMute();
     showBests();
+    setPaperText(els.overTitle, 'ゲームオーバー');
+    setPaperText(els.overUnit, 'てん');
+    setPaperText(els.lblRetry, 'もう一度あそぶ');
+    setPaperText(els.lblMenu, 'モード選択へ');
     game = C.create(mode);
     requestAnimationFrame(frame);
 

@@ -192,6 +192,21 @@ async function run() {
     }));
     ok(over.on && over.mode === 'クラシック', `落ちたら終わりの札が出る (${over.mode})`);
     ok(over.retry, '「もう一度あそぶ」が画面の中に見えている');
+    // 折り紙の札: 部品が重ならず、画面 (安全域の下 34pt を除く) に収まる。後ろのゲームが見え、点数は札より濃い
+    const sheetInfo = await phone.evaluate(() => {
+      const r = (id) => document.getElementById(id).getBoundingClientRect();
+      const panel = document.querySelector('#vOver .paper-panel').getBoundingClientRect(), rb = r('btnRetry'), mb = r('btnMenu');
+      const sc = getComputedStyle(document.getElementById('finalScore')), pn = getComputedStyle(document.querySelector('#vOver .paper-panel'));
+      const lum = (c) => { const m = c.match(/\d+(\.\d+)?/g).map(Number); return (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) / 255; };
+      const sheetBg = getComputedStyle(document.getElementById('vOver')).backgroundColor.match(/[\d.]+/g).map(Number);
+      return { gapPB: rb.top - panel.bottom, gapBM: mb.top - rb.bottom, top: panel.top, bottom: mb.bottom, w: panel.width, rbw: rb.width,
+               letters: document.querySelectorAll('#overTitle .pl').length, scoreLum: lum(sc.color), sheetA: sheetBg.length > 3 ? sheetBg[3] : 1 };
+    });
+    ok(sheetInfo.gapPB > 4 && sheetInfo.gapBM > 4, `札とボタンが重ならない (札の下 ${sheetInfo.gapPB.toFixed(0)}pt / ボタンの間 ${sheetInfo.gapBM.toFixed(0)}pt)`);
+    ok(sheetInfo.top > 59 && sheetInfo.bottom < 932 - 34, `札とボタンが、安全域をよけて画面に収まる (${sheetInfo.top.toFixed(0)}〜${sheetInfo.bottom.toFixed(0)}pt)`);
+    ok(sheetInfo.sheetA <= 0.2, `後ろのゲームが見える (幕の濃さ ${sheetInfo.sheetA})`);
+    ok(sheetInfo.scoreLum < 0.5, `点数は札の紙より濃い茶 (明るさ ${sheetInfo.scoreLum.toFixed(2)})`);
+    ok(sheetInfo.letters === 7, `題字が 1 字ずつの切り紙になっている (${sheetInfo.letters} 字)`);
 
     // ------------------------------------------------ 鳥の絵
     section('鳥の絵 (折り紙)');

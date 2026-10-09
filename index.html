@@ -37,13 +37,18 @@
     </button>
   </section>
 
-  <section id="vOver" class="sheet">
-    <h2 class="over-title">ゲームオーバー</h2>
-    <p class="over-mode" id="overMode"></p>
-    <p class="over-score"><span id="finalScore">0</span><small>てん</small></p>
-    <p class="over-best" id="overBest"></p>
-    <button type="button" id="btnRetry" class="btn btn-primary">もう一度あそぶ</button>
-    <button type="button" id="btnMenu" class="btn">モード選択へ</button>
+  <!-- ゲームオーバー: 折り紙の札とボタン。紙の質感は CSS で作り、点数などの文字は本物のテキストのまま -->
+  <section id="vOver" class="sheet sheet-over">
+    <div class="paper-stack">
+      <div class="paper-panel">
+        <h2 class="over-title" id="overTitle">ゲームオーバー</h2>
+        <p class="over-mode" id="overMode"></p>
+        <p class="over-score"><span id="finalScore">0</span><small id="overUnit">てん</small></p>
+        <p class="over-best" id="overBest"></p>
+      </div>
+      <button type="button" id="btnRetry" class="paper-btn paper-yellow"><span class="paper-label" id="lblRetry">もう一度あそぶ</span></button>
+      <button type="button" id="btnMenu" class="paper-btn paper-cream"><span class="paper-label" id="lblMenu">モード選択へ</span></button>
+    </div>
   </section>
 </div>
 
