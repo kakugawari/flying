@@ -189,9 +189,55 @@ async function run() {
     ok(over.on && over.mode === 'クラシック', `落ちたら終わりの札が出る (${over.mode})`);
     ok(over.retry, '「もう一度あそぶ」が画面の中に見えている');
 
+    // ------------------------------------------------ 鳥の絵
+    section('鳥の絵 (折り紙)');
+    await phone.waitForFunction(() => window.__app.birdSpritesReady(), null, { timeout: 5000 }).catch(() => {});
+    const sprites = await phone.evaluate(async () => {
+      const res = [];
+      for (const n of [1, 2, 3]) {
+        const img = new Image();
+        img.src = 'assets/bird' + n + '.png';
+        await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        const d = x.getImageData(0, 0, c.width, c.height).data;
+        let corner = 0, opaque = 0, magenta = 0, cx = 0, cy = 0, n2 = 0;
+        for (let y = 0; y < c.height; y++) for (let xx = 0; xx < c.width; xx++) {
+          const i = (y * c.width + xx) * 4, a = d[i + 3];
+          if (a > 200) {
+            opaque++; cx += xx; cy += y; n2++;
+            const r = d[i], g = d[i + 1], b = d[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+            // 背景のマゼンタの名残 (赤と青が強く、緑が弱い) が残っていない
+            if (mx > 120 && (mx - mn) / mx > 0.6 && g < r * 0.55 && b > g * 1.5) magenta++;
+          }
+        }
+        for (const [x0, y0] of [[0, 0], [c.width - 1, 0], [0, c.height - 1], [c.width - 1, c.height - 1]]) corner += d[(y0 * c.width + x0) * 4 + 3];
+        const mid = d[((c.height >> 1) * c.width + (c.width >> 1)) * 4 + 3];
+        res.push({ w: img.width, h: img.height, corner, opaque, magenta, mid, gx: cx / n2 / c.width, gy: cy / n2 / c.height });
+      }
+      return res;
+    });
+    ok(sprites.every((s) => s.w === 107 && s.h === 113), '鳥の 3 コマが同じ大きさ (107×113)');
+    ok(sprites.every((s) => s.corner === 0), '四隅が透明 (背景が残っていない)');
+    ok(sprites.every((s) => s.magenta === 0), `背景のマゼンタが残っていない (${sprites.map((s) => s.magenta).join('/')} 画素)`);
+    ok(sprites.every((s) => s.mid === 255), '絵の中心 (体の中心) が不透明 = 当たり判定の丸の中にある');
+    ok(await phone.evaluate(() => window.__app.birdSpritesReady()), '絵が読み込まれ、ゲームで使われている');
+
+    // 鳥の絵が実際に画面に出ている (体の黄色が、鳥の位置にある)
+    const onScreen = await phone.evaluate(async () => {
+      window.__app.startGame('classic');
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const g = window.__app.game(), c = document.getElementById('game'), k = c.width / 430;
+      const d = c.getContext('2d').getImageData(Math.round((110 - 14) * k), Math.round((g.birdY - 14) * k), Math.round(28 * k), Math.round(28 * k)).data;
+      let y = 0, tot = 0;
+      for (let i = 0; i < d.length; i += 4) { tot++; if (d[i] > 200 && d[i + 1] > 160 && d[i + 2] < 140) y++; }
+      return y / tot;
+    });
+    ok(onScreen > 0.5, `鳥の位置に体の黄色が描かれている (${(onScreen * 100).toFixed(0)}%)`);
+
     // ------------------------------------------------ 自動操縦で実際に遊ぶ
     section('自動操縦で遊ぶ (実際のタップ操作で 15 点)');
-    await phone.locator('#btnRetry').tap();
+    await phone.evaluate(() => window.__app.startGame('classic'));
     await phone.waitForTimeout(100);
     await phone.evaluate(() => {
       // タップは本物のイベントで送る。狙いは次の隙間の中心よりやや下

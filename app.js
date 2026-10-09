@@ -32,6 +32,17 @@
   let banner = { text: '', until: 0 };
   let shootingStar = null;
 
+  // ---- 絵 (折り紙の鳥)。読めなかった物は、これまでの描き方のまま ----
+  const birdImgs = [];
+  let birdLoaded = 0;
+  ['assets/bird1.png', 'assets/bird2.png', 'assets/bird3.png'].forEach(function (src, i) {
+    const img = new Image();
+    img.onload = function () { birdImgs[i] = img; birdLoaded++; };
+    img.src = src;
+  });
+  const BIRD_FRAMES = [0, 1, 2, 1];   // 羽: 上 → 中 → 下 → 中
+  const BIRD_W = 107 / 2, BIRD_H = 113 / 2;   // 体の中心が絵の中心 (2 倍で作ってある)
+
   // ---- 保存 (ベストと、前回のモード) ----
   function bestKey(m) { return m === 'adventure' ? 'suisuiBestAdventure' : 'suisuiBestClassic'; }
   function loadBest(m) {
@@ -316,17 +327,22 @@
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(0, 0, R + 14, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.fillStyle = '#ffd93d';
-    ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#c99700'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = '#f4b41a';
-    ctx.beginPath(); ctx.ellipse(-4, 3 + Math.sin(game.frames * 0.4) * 4, 9, 5, -0.3, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(6, -5, 5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#222';
-    ctx.beginPath(); ctx.arc(8, -5, 2.5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#f26b3a';
-    ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(22, 4); ctx.lineTo(12, 8); ctx.closePath(); ctx.fill();
+    const sprite = birdImgs[BIRD_FRAMES[Math.floor(game.frames / 4) % 4]];
+    if (birdLoaded === 3 && sprite) {
+      ctx.drawImage(sprite, -BIRD_W / 2, -BIRD_H / 2, BIRD_W, BIRD_H);
+    } else {
+      ctx.fillStyle = '#ffd93d';
+      ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#c99700'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#f4b41a';
+      ctx.beginPath(); ctx.ellipse(-4, 3 + Math.sin(game.frames * 0.4) * 4, 9, 5, -0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(6, -5, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#222';
+      ctx.beginPath(); ctx.arc(8, -5, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f26b3a';
+      ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(22, 4); ctx.lineTo(12, 8); ctx.closePath(); ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -455,7 +471,8 @@
       step: function (n) { for (let i = 0; i < (n || 1); i++) advance(); },
       render: render,
       startGame: startGame,
-      showMenu: showMenu
+      showMenu: showMenu,
+      birdSpritesReady: function () { return birdLoaded === 3; }
     };
   }
 
