@@ -821,6 +821,20 @@ async function run() {
       await sc.close();
     }
 
+    // ホーム画面から開いたときに全画面になる指定 (無いと状態バーの下から始まり、下の 59pt が切れる)
+    {
+      const mp = await browser.newPage();
+      await mp.goto(URL);
+      const m = await mp.evaluate(() => ({
+        bar: document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.content,
+        cap: document.querySelector('meta[name="apple-mobile-web-app-capable"]')?.content,
+        vp: document.querySelector('meta[name="viewport"]')?.content || '',
+      }));
+      ok(m.cap === 'yes' && m.bar === 'black-translucent', `ホーム画面から全画面で開く指定 (capable ${m.cap} / status-bar-style ${m.bar})`);
+      ok(/viewport-fit=cover/.test(m.vp), '安全域を読むための viewport-fit=cover');
+      await mp.close();
+    }
+
     // ------------------------------------------------ アイコン (用意していれば)
     section('アイコン');
     const desk = await browser.newPage();
