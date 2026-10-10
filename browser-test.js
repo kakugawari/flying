@@ -790,6 +790,51 @@ async function run() {
     ok(await nsPage.evaluate(() => document.getElementById('vOver').classList.contains('on')), '保存できなくても遊べて、終わりの札が出る');
     await noStore.close();
 
+    // ------------------------------------------------ 見えている高さが足りないとき (Safari の帯・アプリ内の枠)
+    section('画面に合わせる');
+    for (const [vw, vh] of [[430, 932], [430, 873], [430, 799]]) {
+      const fc = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+      const fp = await fc.newPage();
+      await fp.goto(URL);
+      await fp.waitForFunction(() => window.__app);
+      await fp.waitForTimeout(300);
+      const r = await fp.evaluate(() => {
+        const a = document.getElementById('app').getBoundingClientRect();
+        const c = document.getElementById('game').getBoundingClientRect();
+        return { top: a.top, bottom: a.bottom, left: a.left, right: a.right, cb: c.bottom, scale: +document.getElementById('app').dataset.scale };
+      });
+      ok(r.bottom <= vh + 0.5 && r.top >= -0.5, `${vw}x${vh}: 床まで画面に収まる (舞台 ${Math.round(r.top)}〜${Math.round(r.bottom)})`);
+      ok(r.right <= vw + 0.5 && r.left >= -0.5, `${vw}x${vh}: 横にはみ出さない (${Math.round(r.left)}〜${Math.round(r.right)})`);
+      ok(Math.abs(r.scale - Math.min(vw / 430, vh / 932)) < 0.002, `${vw}x${vh}: 縦横の比そのままで拡縮 (${r.scale})`);
+      await fc.close();
+    }
+    // ホーム画面から開いたとき (standalone) は、窓が足りなくても 100vh まで使う。ここでは窓 = 100vh なので、拡縮は窓どおりのまま
+    {
+      const sc = await browser.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+      await sc.addInitScript(() => { Object.defineProperty(navigator, 'standalone', { get: () => true }); });
+      const sp = await sc.newPage();
+      await sp.goto(URL);
+      await sp.waitForFunction(() => window.__app);
+      await sp.waitForTimeout(300);
+      const k = await sp.evaluate(() => +document.getElementById('app').dataset.scale);
+      ok(Math.abs(k - 1) < 0.002, `ホーム画面 (standalone) の 430x932 は 1 倍 (${k})`);
+      await sc.close();
+    }
+
+    // ホーム画面から開いたときに全画面になる指定 (無いと状態バーの下から始まり、下の 59pt が切れる)
+    {
+      const mp = await browser.newPage();
+      await mp.goto(URL);
+      const m = await mp.evaluate(() => ({
+        bar: document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.content,
+        cap: document.querySelector('meta[name="apple-mobile-web-app-capable"]')?.content,
+        vp: document.querySelector('meta[name="viewport"]')?.content || '',
+      }));
+      ok(m.cap === 'yes' && m.bar === 'black-translucent', `ホーム画面から全画面で開く指定 (capable ${m.cap} / status-bar-style ${m.bar})`);
+      ok(/viewport-fit=cover/.test(m.vp), '安全域を読むための viewport-fit=cover');
+      await mp.close();
+    }
+
     // ------------------------------------------------ アイコン (用意していれば)
     section('アイコン');
     const desk = await browser.newPage();

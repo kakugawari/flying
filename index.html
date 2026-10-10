@@ -7,6 +7,9 @@
 <meta name="description" content="タップで羽ばたいて、柱のすき間をくぐり抜ける一発アクション">
 <meta name="theme-color" content="#70c5ce">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<!-- ホーム画面から開いたとき、状態バーの下まで画面を広げる (全画面)。これが無いと iOS は状態バーを theme-color で塗り、
+     その下 (873pt) から画面を始めるので、430x932 の下 59pt が切れる。上の 59pt は SAFE_TOP / env(safe-area-inset-top) でよける -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="./icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <link rel="stylesheet" href="./styles.css">
@@ -51,6 +54,7 @@
   </section>
 </div>
 
+<script src="./fit.js"></script>
 <script src="./core.js"></script>
 <script src="./app.js"></script>
 </body>
