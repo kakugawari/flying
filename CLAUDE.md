@@ -73,6 +73,23 @@ serve.js                  開発用サーバー
   幅に応じて詰める書き方 (`min(62px, 16vw)` など) も、
   そのための見張りも要らない。寸法は実機の 430pt で決め打ってよい
 
+
+## 画面サイズが合わないとき (切れる・ずれる) の直し方
+
+実機で確かめて直った手順。**この順に見る。**
+
+1. **どこで開いているかを先に聞く/決める。** 写真の上の帯の色が `theme-color` (#70c5ce) と画素で一致すれば、本番のページ (Artifact ではない)。
+   帯が出ない・×と共有の帯が出る、なら Claude アプリの枠 (Artifact)。**見え方ごとに原因が違う**ので、両方で確かめる。
+2. **ホーム画面から開く本番:** `index.html` に `apple-mobile-web-app-capable=yes` と
+   **`apple-mobile-web-app-status-bar-style=black-translucent`**、`viewport-fit=cover`。これで状態バーの下まで広がる (全画面)。
+   根っこは `html, body { height: 100vh; position: relative }`。上の 59pt は `SAFE_TOP` と `env(safe-area-inset-top)` でよける。
+   **追加済みのアイコンには効かない。削除して追加し直してもらう** (記録 (ベスト) も別の入れ物になり 0 に戻る)。
+3. **Safari・Claude アプリの枠など、高さが 932 に足りない所:** `fit.js` が `#app` (430x932) を縦横の比そのままで縮める。
+   窓の高さ (`innerHeight`) だけでは足りない (Claude アプリは見えている高さより大きく渡す) ので、`IntersectionObserver` で見えている範囲も測る。
+   ホーム画面 (standalone) は `innerHeight` が足りなく渡るので、`100vh` も測って大きい方を使う。
+4. **診断は版の番号つきで画面に出す** (窓・`vh`・`visualViewport`・見える範囲・拡縮)。写真 1 枚で原因が決まる。直したら消す。
+5. 見張り: 932・873・799 の窓で「舞台が窓に収まる・拡縮が縦横の比どおり」、meta の値。**直しを外して落ちることを確かめる。**
+
 ---
 
 ## 作り方(毎回これをなぞる)
