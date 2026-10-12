@@ -29,7 +29,7 @@
   const MAX_SHIFT = 240;       // 隣り合う隙間の中心が離れてよい上限 (登れる高さの範囲内)
   const MAX_HEARTS = 3;
   const HURT_FRAMES = 72;
-  const STAR_FRAMES = 180;
+  const STAR_FRAMES = 360;   // 6 秒 (3 秒だと「すぐ終わって物足りない」と言われて 2 倍にした。亀 SLOW_FRAMES は 4 秒のまま)
   const SLOW_FRAMES = 240;
   const SLOW_RATE = 0.6;
   const ITEM_EVERY = 4;
