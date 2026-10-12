@@ -835,6 +835,40 @@ async function run() {
       await mp.close();
     }
 
+    // ------------------------------------------------ 無敵 (星) の曲
+    section('無敵の曲');
+    {
+      const mc = await browser.newContext(PHONE);
+      const mp = await mc.newPage();
+      await mp.goto(URL);
+      await mp.waitForFunction(() => window.__app);
+      await mp.locator('#btnAdventure').tap();
+      await mp.waitForFunction(() => window.__app.audio());
+      // 出口の音量を 50ms ごとに測る。2 秒 (120 コマ) だけ無敵にして、鳥は浮かべたままにする
+      await mp.evaluate(() => {
+        const a = window.__app.audio(), g = window.__app.game();
+        const an = a.ctx.createAnalyser(); an.fftSize = 1024; a.master.connect(an);
+        const buf = new Float32Array(an.fftSize);
+        window.__probe = { t0: performance.now(), peaks: [] };
+        g.phase = 'play'; g.starUntil = g.play + 120;
+        setInterval(() => {
+          g.birdY = 400; g.vy = 0; g.pipes.length = 0; g.items.length = 0;
+          an.getFloatTimeDomainData(buf);
+          let m = 0; for (const v of buf) m = Math.max(m, Math.abs(v));
+          window.__probe.peaks.push({ t: (performance.now() - window.__probe.t0) / 1000, m, star: g.play < g.starUntil });
+        }, 50);
+      });
+      await mp.waitForTimeout(2600);
+      const pr = await mp.evaluate(() => window.__probe.peaks);
+      const peak = (a, b) => Math.max(0, ...pr.filter((x) => x.t >= a && x.t < b).map((x) => x.m));
+      const during = peak(0.3, 0.9), after = peak(1.5, 1.95);
+      const starAt19 = pr.filter((x) => x.t >= 1.5 && x.t < 1.95).every((x) => x.star);
+      ok(during > 0.02, `無敵のあいだ曲が鳴る (最大 ${during.toFixed(3)})`);
+      ok(starAt19 && after < 0.005, `無敵が切れる前 (1.5〜1.95 秒。まだ無敵) に、音は元に戻って静か (最大 ${after.toFixed(4)})`);
+      ok(during < 0.5, `曲が大きすぎない (最大 ${during.toFixed(3)} < 0.5)`);
+      await mc.close();
+    }
+
     // ------------------------------------------------ アイコン (用意していれば)
     section('アイコン');
     const desk = await browser.newPage();
