@@ -835,45 +835,55 @@ async function run() {
       await mp.close();
     }
 
-    // ------------------------------------------------ 夜の空の絵
-    section('夜の空の絵');
+    // ------------------------------------------------ 夜・星空・オーロラの空の絵
+    section('夜・星空・オーロラの空の絵');
     {
       const nc = await browser.newContext(PHONE);
       const np = await nc.newPage();
       await np.goto(URL);
       await np.waitForFunction(() => window.__app);
       await np.locator('#btnAdventure').tap();
-      const setScore = (sc) => np.evaluate((sc) => { const g = window.__app.game(); g.phase = 'play'; g.score = sc; g.pipes.length = 0; g.items.length = 0; window.__app.render(); return +getComputedStyle(document.getElementById('skyNight')).opacity; }, sc);
-      const art = await np.evaluate(async () => {
-        const im = document.getElementById('skyNight'); await im.decode();
-        const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
-        const g = c.getContext('2d'); g.drawImage(im, 0, 0);
-        const d = g.getImageData(0, 0, c.width, c.height).data;
-        let gold = 0, floor = 0;
-        for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
-          const i = (y * c.width + x) * 4, r = d[i], gg = d[i + 1], b = d[i + 2];
-          if (r > 200 && gg > 150 && b < 110) gold++;
-          if (y > c.height - 30 && gg > b + 30) floor++;   // 床の緑が混ざっていないか (下の端)
+      const ops = (sc) => np.evaluate((sc) => { const g = window.__app.game(); g.phase = 'play'; g.score = sc; g.pipes.length = 0; g.items.length = 0; window.__app.render();
+        return ['skyNight', 'skyStarry', 'skyAurora'].map((id) => +getComputedStyle(document.getElementById(id)).opacity); }, sc);
+      const arts = await np.evaluate(async () => {
+        const out = {};
+        for (const id of ['skyNight', 'skyStarry', 'skyAurora']) {
+          const im = document.getElementById(id); await im.decode();
+          const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+          const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+          const d = g.getImageData(0, 0, c.width, c.height).data;
+          let gold = 0, green = 0, lum = 0;
+          for (let i = 0; i < d.length; i += 4) {
+            if (d[i] > 200 && d[i + 1] > 150 && d[i + 2] < 120) gold++;
+            if (d[i + 1] > 140 && d[i + 1] > d[i] + 40 && d[i + 1] > d[i + 2] - 20) green++;   // オーロラの緑
+            lum += (d[i] + d[i + 1] + d[i + 2]) / 3;
+          }
+          out[id] = { w: c.width, h: c.height, gold, green, lum: lum / (d.length / 4) };
         }
-        return { w: c.width, h: c.height, gold, floor };
+        return out;
       });
-      ok(art.w === 538 && art.h === 1053, `夜の絵は 538x1053 (${art.w}x${art.h})`);
-      ok(art.gold > 400, `夜の絵に金の星が写っている (${art.gold} 画素)`);
-      ok(art.floor === 0, `夜の絵の下の端に床の緑が混ざらない (${art.floor} 画素)`);
-      const o20 = await setScore(20), o25 = await setScore(25), o30 = await setScore(30), o35 = await setScore(35), o40 = await setScore(40);
-      ok(o20 === 0 && o40 === 0, `夜の絵は 20 点・40 点では出ない (${o20} / ${o40})`);
-      ok(o30 === 1 && o25 > 0.3 && o25 < 0.7 && o35 > 0.3 && o35 < 0.7, `夜 (30 点) でちょうど 1、前後の 25・35 点は途中 (${o25} / ${o30} / ${o35})`);
+      for (const id of ['skyNight', 'skyStarry', 'skyAurora']) ok(arts[id].w === 538 && arts[id].h === 1053, `${id} は 538x1053 (${arts[id].w}x${arts[id].h})`);
+      ok(arts.skyNight.gold > 300 && arts.skyStarry.gold > 300, `夜と星空の絵に金の星が写っている (${arts.skyNight.gold} / ${arts.skyStarry.gold} 画素)`);
+      ok(arts.skyAurora.green > 4000 && arts.skyNight.green < 100 && arts.skyStarry.green < 100, `オーロラの絵だけ緑が多い (${arts.skyAurora.green} / ${arts.skyNight.green} / ${arts.skyStarry.green} 画素)`);
+      ok(Object.values(arts).every((a) => a.lum < 110), `3 枚とも夜の暗さ (明るさ ${Object.values(arts).map((a) => a.lum.toFixed(0)).join(' / ')})`);
+      const o = {}; for (const sc of [0, 20, 25, 30, 35, 40, 45, 50, 70]) o[sc] = await ops(sc);
+      ok(o[0].every((v) => v === 0) && o[20].every((v) => v === 0), '20 点までは絵を出さない');
+      ok(o[30][0] === 1 && o[30][1] === 0 && o[30][2] === 0, `30 点は夜の絵だけ (${o[30]})`);
+      ok(o[40][0] === 1 && o[40][1] === 1 && o[40][2] === 0, `40 点は星空の絵まで (${o[40]})`);
+      ok(o[50].every((v) => v === 1) && o[70].every((v) => v === 1), `50 点からオーロラの絵まで全部 (${o[50]})`);
+      ok(o[25][0] > 0.3 && o[25][0] < 0.7 && o[35][1] > 0.3 && o[35][1] < 0.7 && o[45][2] > 0.3 && o[45][2] < 0.7, `前後の 5 点は途中 (${o[25][0]} / ${o[35][1]} / ${o[45][2]})`);
       await nc.close();
 
-      // 絵が読めなければ、夜も元のグラデーション + 星と月のまま (絵を出さない)
+      // 1 枚でも絵が読めなければ、元のグラデーション + 星と月 (canvas) のまま
       const bc = await browser.newContext(PHONE);
-      await bc.route('**/sky-night.jpg', (r) => r.abort());
+      await bc.route('**/sky-starry.jpg', (r) => r.abort());
       const bp = await bc.newPage();
       await bp.goto(URL);
       await bp.waitForFunction(() => window.__app);
       await bp.locator('#btnAdventure').tap();
-      const ob = await bp.evaluate(() => { const g = window.__app.game(); g.phase = 'play'; g.score = 30; g.pipes.length = 0; g.items.length = 0; window.__app.render(); return +getComputedStyle(document.getElementById('skyNight')).opacity; });
-      ok(ob === 0, `夜の絵が読めないときは出さない (${ob})`);
+      const ob = await bp.evaluate(() => { const g = window.__app.game(); g.phase = 'play'; g.score = 45; g.pipes.length = 0; g.items.length = 0; window.__app.render();
+        return ['skyNight', 'skyStarry', 'skyAurora'].map((id) => +getComputedStyle(document.getElementById(id)).opacity); });
+      ok(ob.every((v) => v === 0), `絵が 1 枚でも読めないときは、どれも出さない (${ob})`);
       await bc.close();
     }
 

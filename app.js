@@ -24,7 +24,7 @@
     bestAdventure: document.getElementById('bestAdventure'),
     mute: document.getElementById('btnMute'),
     sky: document.getElementById('sky'),
-    skyNight: document.getElementById('skyNight'),
+    skyArt: ['skyNight', 'skyStarry', 'skyAurora'].map(function (id) { return document.getElementById(id); }),
     skyPaper: document.getElementById('skyPaper')
   };
 
@@ -401,18 +401,18 @@
 
   // 空の色 (CSS のグラデーション)。変わったときだけ書き換える。単色でも linear-gradient で指定し、種類を変えない
   let skyKey = '';
-  // 夜の絵が読めたかどうか。読めなければ、夜も元のグラデーション + 星と月 (canvas) のまま
-  function nightReady() { return !!(els.skyNight && els.skyNight.complete && els.skyNight.naturalWidth > 0); }
-  function nightWeight(pal) { return nightReady() ? pal.night : 0; }
+  // 夜・星空・オーロラの絵が全部読めたかどうか。1 枚でも読めなければ出さず、元のグラデーション + 星と月とオーロラ (canvas) のまま
+  function skyArtReady() { return els.skyArt.every(function (im) { return im && im.complete && im.naturalWidth > 0; }); }
+  function skyArtWeights(pal) { return skyArtReady() ? pal.skyArt : [0, 0, 0]; }
   function applySky(pal) {
-    const night = nightWeight(pal).toFixed(2);
-    const key = rgb(pal.sky[0]) + rgb(pal.sky[1]) + night;
+    const w = skyArtWeights(pal).map(function (v) { return v.toFixed(2); });
+    const key = rgb(pal.sky[0]) + rgb(pal.sky[1]) + w.join();
     if (key === skyKey) return;
     skyKey = key;
     els.sky.style.background = 'linear-gradient(' + rgb(pal.sky[0]) + ',' + rgb(pal.sky[1]) + ')';
-    // 夜の絵には折り目が写っているので、同じ紙の折り目 (skyPaper) は夜に近づくほど薄める。星と月も絵にあるので canvas のは引っ込める
-    els.skyNight.style.opacity = night;
-    els.skyPaper.style.opacity = (1 - night * 0.8).toFixed(2);
+    for (let i = 0; i < 3; i++) els.skyArt[i].style.opacity = w[i];
+    // 絵には紙の折り目が写っているので、同じ折り目 (skyPaper) は絵が濃いほど薄める
+    els.skyPaper.style.opacity = (1 - w[0] * 0.8).toFixed(2);
   }
 
   // 雲 (折り紙)。絵が読めなかった物は、これまでの描き方のまま
@@ -426,9 +426,9 @@
   }
 
   function drawBackground(pal) {
-    const own = Math.pow(1 - nightWeight(pal), 3);   // 夜の絵が出ている分だけ、絵の中の星と月に任せる (3 乗で、重なる間は早めに引っ込める)
+    const own = Math.pow(1 - skyArtWeights(pal)[0], 3);   // 絵が出ている分だけ、絵の中の星・月・オーロラに任せる (3 乗で、重なる間は早めに引っ込める)
     if (pal.stars * own > 0.01) drawStars(pal.stars * own);
-    if (pal.aurora > 0.01) drawAurora(pal.aurora);
+    if (pal.aurora * own > 0.01) drawAurora(pal.aurora * own);
     if (pal.moon * own > 0.01) drawMoon(pal.moon * own);
     const span = W + 160;
     const drift = (game.frames * 0.3) % span;

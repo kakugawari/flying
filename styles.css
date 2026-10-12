@@ -47,8 +47,8 @@ body {
   height: 842px;             /* 床の上まで (932 - 90) */
   background: linear-gradient(rgb(112, 197, 206), rgb(188, 230, 236));
 }
-/* 夜の空の絵 (星と月つきの折り紙)。色のグラデーションの上に、夜に近づくほど濃く重ねる (opacity は app.js) */
-#skyNight {
+/* 夜・星空・オーロラの空の絵 (折り紙)。色のグラデーションの上に、夜 → 星空 → オーロラの順に重ねる (opacity は app.js) */
+.sky-art {
   position: absolute;
   left: 0;
   top: 0;
