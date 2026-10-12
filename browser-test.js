@@ -836,7 +836,7 @@ async function run() {
     }
 
     // ------------------------------------------------ 夜・星空・オーロラの空の絵
-    section('空の絵 (夕方〜オーロラ)');
+    section('空の絵 (朝〜オーロラ)');
     {
       const nc = await browser.newContext(PHONE);
       const np = await nc.newPage();
@@ -845,10 +845,10 @@ async function run() {
       await np.locator('#btnAdventure').tap();
       // 切り替わりは CSS で 0.6 秒かけて動くので、目標の値 (style.opacity) を読む
       const ops = (sc) => np.evaluate((sc) => { const g = window.__app.game(); g.phase = 'play'; g.score = sc; g.pipes.length = 0; g.items.length = 0; window.__app.render();
-        return ['skySunset', 'skyDusk', 'skyNight', 'skyStarry', 'skyAurora'].map((id) => +document.getElementById(id).style.opacity); }, sc);
+        return ['skyMorning', 'skyNoon', 'skySunset', 'skyDusk', 'skyNight', 'skyStarry', 'skyAurora', 'skySpace'].map((id) => +document.getElementById(id).style.opacity); }, sc);
       const arts = await np.evaluate(async () => {
         const out = {};
-        for (const id of ['skySunset', 'skyDusk', 'skyNight', 'skyStarry', 'skyAurora']) {
+        for (const id of ['skyMorning', 'skyNoon', 'skySunset', 'skyDusk', 'skyNight', 'skyStarry', 'skyAurora', 'skySpace']) {
           const im = document.getElementById(id); await im.decode();
           const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
           const g = c.getContext('2d'); g.drawImage(im, 0, 0);
@@ -856,7 +856,7 @@ async function run() {
           let gold = 0, green = 0, lum = 0;
           for (let i = 0; i < d.length; i += 4) {
             if (d[i] > 200 && d[i + 1] > 150 && d[i + 2] < 120) gold++;
-            if (d[i + 1] > 140 && d[i + 1] > d[i] + 40 && d[i + 1] > d[i + 2] - 20) green++;   // オーロラの緑
+            if (d[i + 1] > 140 && d[i + 1] > d[i] + 40 && d[i + 1] > d[i + 2] + 10) green++;   // オーロラの緑 (青緑の空や海は、青の方が強いので入らない)
             lum += (d[i] + d[i + 1] + d[i + 2]) / 3;
           }
           // 金色の塊の大きさ: 月 (いちばん大きい塊と、そのまわり。陰の所は別の塊に割れる) 以外の星が、アイテムの星 (40pt) と見分けがつくくらい小さいか
@@ -876,21 +876,34 @@ async function run() {
         }
         return out;
       });
-      const ids5 = ['skySunset', 'skyDusk', 'skyNight', 'skyStarry', 'skyAurora'];
-      for (const id of ids5) ok(arts[id].w === 538 && arts[id].h === 1053, `${id} は 538x1053 (${arts[id].w}x${arts[id].h})`);
+      const ids5 = ['skyMorning', 'skyNoon', 'skySunset', 'skyDusk', 'skyNight', 'skyStarry', 'skyAurora', 'skySpace'];
+      for (const id of ids5.filter((i) => i !== 'skySpace')) ok(arts[id].w === 538 && arts[id].h === 1053, `${id} は 538x1053 (${arts[id].w}x${arts[id].h})`);
+      ok(arts.skySpace.h === 1053 && arts.skySpace.w > 1800, `宇宙の絵は横長 (${arts.skySpace.w}x${arts.skySpace.h})`);
       ok(arts.skyNight.gold > 300 && arts.skyStarry.gold > 300, `夜と星空の絵に金の星が写っている (${arts.skyNight.gold} / ${arts.skyStarry.gold} 画素)`);
-      ok(arts.skyAurora.green > 4000 && ids5.filter((i) => i !== 'skyAurora').every((i) => arts[i].green < 100), `オーロラの絵だけ緑が多い (${arts.skyAurora.green} / 他 ${ids5.filter((i) => i !== 'skyAurora').map((i) => arts[i].green).join(',')} 画素)`);
+      const others = ids5.filter((i) => i !== 'skyAurora' && i !== 'skySpace').map((i) => arts[i].green);
+      ok(arts.skyAurora.green > 20000 && arts.skyAurora.green > 2.5 * Math.max(...others), `緑が多いのはオーロラの絵 (${arts.skyAurora.green} 画素 / 他 ${others.join(',')})`);
       const bigs = ['skyNight', 'skyStarry', 'skyAurora'].map((i) => arts[i].big);
       ok(bigs.every((v) => v <= 24), `背景の星は小さい (金色の星の最大 ${bigs.join(' / ')} 画素。538 幅で 24 画素 = 19pt 以下。アイテムの星は 40pt)`);
-      ok(arts.skyNight.lum < 110 && arts.skyStarry.lum < 110 && arts.skyAurora.lum < 110 && arts.skyDusk.lum < 120, `夜の 4 枚は暗い (明るさ ${ids5.map((i) => arts[i].lum.toFixed(0)).join(' / ')})`);
-      ok(arts.skySunset.lum > arts.skyDusk.lum && arts.skyDusk.lum > arts.skyNight.lum - 5, `明るさは 夕方 > 夕方から夜 > 夜 の順に落ちる (${arts.skySunset.lum.toFixed(0)} / ${arts.skyDusk.lum.toFixed(0)} / ${arts.skyNight.lum.toFixed(0)})`);
-      const o = {}; for (const sc of [0, 14, 15, 20, 25, 29, 30, 39, 40, 49, 50, 70]) o[sc] = await ops(sc);
-      ok(o[0].every((v) => v === 0) && o[14].every((v) => v === 0), '14 点までは絵を出さない');
-      ok(o[15].join() === '1,0,0,0,0' && o[20].join() === '1,0,0,0,0', `15〜20 点は夕方の絵 (${o[15]} / ${o[20]})`);
-      ok(o[25][1] > 0.3 && o[25][1] < 0.7 && o[25][2] === 0, `25 点は夕方から夜の絵が途中 (${o[25]})`);
-      ok(o[30].join() === '1,1,1,0,0' && o[39].join() === '1,1,1,0,0', `30〜39 点は夜の絵 (${o[30]} / ${o[39]})`);
-      ok(o[40].join() === '1,1,1,1,0' && o[49].join() === '1,1,1,1,0', `40〜49 点は星空の絵 (${o[40]} / ${o[49]})`);
-      ok(o[50].every((v) => v === 1) && o[70].every((v) => v === 1), `50 点からオーロラの絵まで全部 (${o[50]})`);
+      ok(arts.skyNight.lum < 110 && arts.skyStarry.lum < 110 && arts.skyAurora.lum < 110 && arts.skyDusk.lum < 120, `夜の 4 枚は暗い (明るさ ${['skyDusk', 'skyNight', 'skyStarry', 'skyAurora'].map((i) => arts[i].lum.toFixed(0)).join(' / ')})`);
+      ok(arts.skyMorning.lum > 90 && arts.skyNoon.lum > 90, `朝と昼は明るい (${arts.skyMorning.lum.toFixed(0)} / ${arts.skyNoon.lum.toFixed(0)})`);
+      ok(arts.skyNoon.lum > arts.skySunset.lum && arts.skySunset.lum > arts.skyDusk.lum && arts.skyDusk.lum > arts.skyNight.lum - 5, `明るさは 昼 > 夕方 > 夕方から夜 > 夜 の順に落ちる (${['skyNoon', 'skySunset', 'skyDusk', 'skyNight'].map((i) => arts[i].lum.toFixed(0)).join(' / ')})`);
+      const o = {}; for (const sc of [0, 9, 10, 19, 20, 25, 29, 30, 39, 40, 49, 50, 59, 60, 70]) o[sc] = await ops(sc);
+      ok(o[0].join() === '1,0,0,0,0,0,0,0' && o[9].join() === '1,0,0,0,0,0,0,0', `0〜9 点は朝の絵 (${o[0]} / ${o[9]})`);
+      ok(o[10].join() === '1,1,0,0,0,0,0,0' && o[19].join() === '1,1,0,0,0,0,0,0', `10〜19 点は昼の絵 (${o[10]} / ${o[19]})`);
+      ok(o[20].join() === '1,1,1,0,0,0,0,0', `20 点は夕方の絵 (${o[20]})`);
+      ok(o[25][3] > 0.3 && o[25][3] < 0.7 && o[25][4] === 0, `25 点は夕方から夜の絵が途中 (${o[25]})`);
+      ok(o[30].join() === '1,1,1,1,1,0,0,0' && o[39].join() === '1,1,1,1,1,0,0,0', `30〜39 点は夜の絵 (${o[30]} / ${o[39]})`);
+      ok(o[40].join() === '1,1,1,1,1,1,0,0' && o[49].join() === '1,1,1,1,1,1,0,0', `40〜49 点は星空の絵 (${o[40]} / ${o[49]})`);
+      ok(o[50].join() === '1,1,1,1,1,1,1,0' && o[59].join() === '1,1,1,1,1,1,1,0', `50〜59 点はオーロラの絵まで (${o[50]})`);
+      ok(o[60].every((v) => v === 1) && o[70].every((v) => v === 1), `60 点から宇宙の絵まで全部 (${o[60]})`);
+      // 宇宙の絵はゆっくり動く: 出ているあいだだけ動き、窓 (430pt) からはみ出さない範囲を行き来する
+      const panAt = async (sc, ms) => { await ops(sc); await np.waitForTimeout(ms); return np.evaluate(() => { const el = document.getElementById('skySpace'); const m = new DOMMatrixReadOnly(getComputedStyle(el).transform); return { x: m.m41, w: el.getBoundingClientRect().width, state: getComputedStyle(el).animationPlayState }; }); };
+      const sp59 = await panAt(59, 300);
+      const sp60a = await panAt(60, 400), sp60b = await panAt(60, 1500);
+      ok(sp59.state === 'paused', `宇宙の絵が出ていないあいだは動かさない (${sp59.state})`);
+      ok(sp60a.state === 'running' && sp60b.x < sp60a.x - 0.05, `宇宙の絵は出ているあいだゆっくり動く (出だしはゆっくり加速するので、1.5 秒で 0.05pt 以上 (${sp60a.x.toFixed(2)} → ${sp60b.x.toFixed(2)}pt)`);
+      ok(sp60b.x <= 0 && sp60b.x >= 430 - sp60b.w - 1, `動く範囲は絵の中に収まる (x ${sp60b.x.toFixed(1)}pt。絵の幅 ${sp60b.w.toFixed(0)}pt)`);
+      await ops(0);
       // 月が二つ重なって見える時間は短い: 重ね合わせは 0.6 秒以内
       const tr = await np.evaluate(() => { const cs = getComputedStyle(document.getElementById('skyStarry')); return { dur: cs.transitionDuration, prop: cs.transitionProperty }; });
       ok(tr.prop === 'opacity' && parseFloat(tr.dur) > 0 && parseFloat(tr.dur) <= 0.7, `絵はぱっと替わるとき短い重ね合わせ (${tr.prop} ${tr.dur})`);
@@ -904,7 +917,7 @@ async function run() {
       await bp.waitForFunction(() => window.__app);
       await bp.locator('#btnAdventure').tap();
       const ob = await bp.evaluate(() => { const g = window.__app.game(); g.phase = 'play'; g.score = 45; g.pipes.length = 0; g.items.length = 0; window.__app.render();
-        return ['skySunset', 'skyDusk', 'skyNight', 'skyStarry', 'skyAurora'].map((id) => +document.getElementById(id).style.opacity); });
+        return ['skyMorning', 'skyNoon', 'skySunset', 'skyDusk', 'skyNight', 'skyStarry', 'skyAurora', 'skySpace'].map((id) => +document.getElementById(id).style.opacity); });
       ok(ob.every((v) => v === 0), `絵が 1 枚でも読めないときは、どれも出さない (${ob})`);
       await bc.close();
     }

@@ -47,7 +47,7 @@ body {
   height: 842px;             /* 床の上まで (932 - 90) */
   background: linear-gradient(rgb(112, 197, 206), rgb(188, 230, 236));
 }
-/* 空の絵 (折り紙) 5 枚。色のグラデーションの上に、夕方 → 夕方から夜 → 夜 → 星空 → オーロラの順に重ねる (opacity は app.js) */
+/* 空の絵 (折り紙) 8 枚。色のグラデーションの上に、朝 → 昼 → 夕方 → 夕方から夜 → 夜 → 星空 → オーロラ → 宇宙の順に重ねる (opacity は app.js) */
 .sky-art {
   position: absolute;
   left: 0;
@@ -57,6 +57,17 @@ body {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.6s;   /* 点数の境でぱっと替わる絵が多い。重なって見える時間 (月が二つ見える時間) を 0.6 秒にとどめる */
+}
+/* 宇宙の絵は横長 (1544pt)。430pt の窓の中を、ゆっくり行って戻る。出ているあいだだけ動かす (app.js が animation-play-state を切り替える) */
+.sky-art.sky-pan {
+  width: auto;
+  will-change: transform;
+  animation: skyPan 180s ease-in-out infinite alternate;
+  animation-play-state: paused;
+}
+@keyframes skyPan {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(430px - 100%)); }
 }
 #skyPaper {
   transition: opacity 0.6s;

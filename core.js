@@ -50,7 +50,8 @@
     { name: '夕やけ',   sky: [[240, 110, 80], [255, 205, 120]],  pipe: [[160, 82, 106], [111, 52, 72], [138, 68, 89]],    ground: [[204, 160, 100], [150, 100, 60]], shade: 0.12, cloud: 0.55, stars: 0,   moon: 0,   aurora: 0 },
     { name: '夜',       sky: [[20, 28, 70], [58, 66, 128]],      pipe: [[64, 68, 112], [38, 41, 78], [52, 56, 96]],       ground: [[86, 96, 116], [54, 60, 86]],     shade: 0.42, cloud: 0.18, stars: 0.7, moon: 1,   aurora: 0 },
     { name: '星空',     sky: [[6, 8, 32], [30, 36, 86]],         pipe: [[46, 49, 90], [26, 28, 54], [38, 41, 74]],        ground: [[62, 68, 94], [38, 42, 64]],      shade: 0.58, cloud: 0.06, stars: 1,   moon: 1,   aurora: 0 },
-    { name: 'オーロラ', sky: [[4, 22, 44], [12, 66, 78]],        pipe: [[32, 80, 94], [18, 50, 58], [26, 68, 80]],        ground: [[42, 84, 94], [26, 52, 62]],      shade: 0.5, cloud: 0.04, stars: 1,   moon: 0.6, aurora: 1 }
+    { name: 'オーロラ', sky: [[4, 22, 44], [12, 66, 78]],        pipe: [[32, 80, 94], [18, 50, 58], [26, 68, 80]],        ground: [[42, 84, 94], [26, 52, 62]],      shade: 0.5, cloud: 0.04, stars: 1,   moon: 0.6, aurora: 1 },
+    { name: '宇宙',     sky: [[8, 10, 36], [34, 28, 78]],        pipe: [[70, 58, 118], [44, 36, 84], [58, 48, 102]],      ground: [[62, 56, 100], [38, 34, 70]],     shade: 0.5, cloud: 0,    stars: 1,   moon: 0,   aurora: 0 }
   ];
 
   function mulberry32(seed) {
@@ -70,7 +71,6 @@
   }
 
   const NIGHT_AT = 3 * STAGE_LEN;   // STAGES[3] = 夜
-  const SUNSET_AT = 1.5 * STAGE_LEN;   // 夕やけ (STAGES[2]) へ向かう昼の半分
 
   function stageIndex(score) { return Math.min(STAGES.length - 1, Math.floor(score / STAGE_LEN)); }
 
@@ -88,11 +88,13 @@
       stars: lerp(a.stars, b.stars, t),
       moon: lerp(a.moon, b.moon, t),
       aurora: lerp(a.aurora, b.aurora, t),
-      // 空の紙の絵 5 枚 (assets/sky-sunset / dusk / night / starry / aurora.jpg) をどれだけ出すか。この順に下から重ねる。
-      //   夕方 15 点 (昼のグラデーションと混ぜると灰紫に濁るので、半分の点でぱっと替える) → 夕方から夜 20→30 点でなめらかに
-      //   (夕方と構図がそろった組なので、ゆっくり重ねてよい) → 夜 30 点 → 星空 40 点 → オーロラ 50 点 (絵ごとに月などが違うので、ぱっと替える)。
-      // ぱっと替えるときも CSS で 0.6 秒だけ重ねる。下の絵は 1 のまま残すので、重なっている間もグラデーションは透けない
-      skyArt: [score >= SUNSET_AT ? 1 : 0, Math.max(0, Math.min(1, (score - 2 * STAGE_LEN) / STAGE_LEN)), score >= NIGHT_AT ? 1 : 0, score >= NIGHT_AT + STAGE_LEN ? 1 : 0, score >= NIGHT_AT + 2 * STAGE_LEN ? 1 : 0]
+      // 空の紙の絵 8 枚 (assets/sky-morning / noon / sunset / dusk / night / starry / aurora / space.jpg) をどれだけ出すか。この順に下から重ねる。
+      // 朝は最初から。昼 10 点・夕方 20 点・夜 30 点・星空 40 点・オーロラ 50 点・宇宙 60 点 = ステージの頭 (色がそのステージの色になる点) でぱっと替える。
+      // 夕方から夜は 20→30 点でなめらかに (夕方と構図がそろった組なので、ゆっくり重ねると夕焼けが暮れていく)。
+      // 絵ごとに太陽や月が違うので、混ぜ続けると二つ重なって見える。ぱっと替えるときも CSS の 0.6 秒だけ重ねる。
+      // 下の絵は 1 のまま残すので、重なっている間もグラデーションは透けない (絵は 1 枚目から全面を覆うので、グラデーションが見えるのは絵が読めないときだけ)
+      // 宇宙 (60 点) は、横長の絵をゆっくり動かして見せる (CSS。ずっと同じ背景で飽きないように)
+      skyArt: [1, score >= STAGE_LEN ? 1 : 0, score >= 2 * STAGE_LEN ? 1 : 0, Math.max(0, Math.min(1, (score - 2 * STAGE_LEN) / STAGE_LEN)), score >= NIGHT_AT ? 1 : 0, score >= NIGHT_AT + STAGE_LEN ? 1 : 0, score >= NIGHT_AT + 2 * STAGE_LEN ? 1 : 0, score >= NIGHT_AT + 3 * STAGE_LEN ? 1 : 0]
     };
   }
 
