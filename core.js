@@ -70,6 +70,7 @@
   }
 
   const NIGHT_AT = 3 * STAGE_LEN;   // STAGES[3] = 夜
+  const SUNSET_AT = 1.5 * STAGE_LEN;   // 夕やけ (STAGES[2]) へ向かう昼の半分
 
   function stageIndex(score) { return Math.min(STAGES.length - 1, Math.floor(score / STAGE_LEN)); }
 
@@ -87,10 +88,11 @@
       stars: lerp(a.stars, b.stars, t),
       moon: lerp(a.moon, b.moon, t),
       aurora: lerp(a.aurora, b.aurora, t),
-      // 夜・星空・オーロラの紙の絵 (assets/sky-night / starry / aurora.jpg) をどれだけ出すか。下から重ねる。
-      // 夜は夕やけのグラデーションから 20→30 点でなめらかに入る。星空 (35 点) とオーロラ (45 点) は、絵ごとに月などが違うので、
-      // 10 点かけて混ぜると「月が二つ重なって」見え続ける。半分の点で切り替え、CSS の短い (0.6 秒) 重ね合わせだけで済ませる
-      skyArt: [Math.max(0, Math.min(1, (score - (NIGHT_AT - STAGE_LEN)) / STAGE_LEN)), score >= NIGHT_AT + STAGE_LEN / 2 ? 1 : 0, score >= NIGHT_AT + 3 * STAGE_LEN / 2 ? 1 : 0]
+      // 空の紙の絵 5 枚 (assets/sky-sunset / dusk / night / starry / aurora.jpg) をどれだけ出すか。この順に下から重ねる。
+      //   夕方 15 点 (昼のグラデーションと混ぜると灰紫に濁るので、半分の点でぱっと替える) → 夕方から夜 20→30 点でなめらかに
+      //   (夕方と構図がそろった組なので、ゆっくり重ねてよい) → 夜 30 点 → 星空 40 点 → オーロラ 50 点 (絵ごとに月などが違うので、ぱっと替える)。
+      // ぱっと替えるときも CSS で 0.6 秒だけ重ねる。下の絵は 1 のまま残すので、重なっている間もグラデーションは透けない
+      skyArt: [score >= SUNSET_AT ? 1 : 0, Math.max(0, Math.min(1, (score - 2 * STAGE_LEN) / STAGE_LEN)), score >= NIGHT_AT ? 1 : 0, score >= NIGHT_AT + STAGE_LEN ? 1 : 0, score >= NIGHT_AT + 2 * STAGE_LEN ? 1 : 0]
     };
   }
 
