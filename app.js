@@ -23,7 +23,9 @@
     bestClassic: document.getElementById('bestClassic'),
     bestAdventure: document.getElementById('bestAdventure'),
     mute: document.getElementById('btnMute'),
-    sky: document.getElementById('sky')
+    sky: document.getElementById('sky'),
+    skyNight: document.getElementById('skyNight'),
+    skyPaper: document.getElementById('skyPaper')
   };
 
   let game = C.create('classic');
@@ -399,11 +401,18 @@
 
   // 空の色 (CSS のグラデーション)。変わったときだけ書き換える。単色でも linear-gradient で指定し、種類を変えない
   let skyKey = '';
+  // 夜の絵が読めたかどうか。読めなければ、夜も元のグラデーション + 星と月 (canvas) のまま
+  function nightReady() { return !!(els.skyNight && els.skyNight.complete && els.skyNight.naturalWidth > 0); }
+  function nightWeight(pal) { return nightReady() ? pal.night : 0; }
   function applySky(pal) {
-    const key = rgb(pal.sky[0]) + rgb(pal.sky[1]);
+    const night = nightWeight(pal).toFixed(2);
+    const key = rgb(pal.sky[0]) + rgb(pal.sky[1]) + night;
     if (key === skyKey) return;
     skyKey = key;
     els.sky.style.background = 'linear-gradient(' + rgb(pal.sky[0]) + ',' + rgb(pal.sky[1]) + ')';
+    // 夜の絵には折り目が写っているので、同じ紙の折り目 (skyPaper) は夜に近づくほど薄める。星と月も絵にあるので canvas のは引っ込める
+    els.skyNight.style.opacity = night;
+    els.skyPaper.style.opacity = (1 - night * 0.8).toFixed(2);
   }
 
   // 雲 (折り紙)。絵が読めなかった物は、これまでの描き方のまま
@@ -417,9 +426,10 @@
   }
 
   function drawBackground(pal) {
-    if (pal.stars > 0.01) drawStars(pal.stars);
+    const own = Math.pow(1 - nightWeight(pal), 3);   // 夜の絵が出ている分だけ、絵の中の星と月に任せる (3 乗で、重なる間は早めに引っ込める)
+    if (pal.stars * own > 0.01) drawStars(pal.stars * own);
     if (pal.aurora > 0.01) drawAurora(pal.aurora);
-    if (pal.moon > 0.01) drawMoon(pal.moon);
+    if (pal.moon * own > 0.01) drawMoon(pal.moon * own);
     const span = W + 160;
     const drift = (game.frames * 0.3) % span;
     drawPaperCloud('cloud2', W + 80 - drift, 170, pal, 1.0);

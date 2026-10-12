@@ -47,6 +47,16 @@ body {
   height: 842px;             /* 床の上まで (932 - 90) */
   background: linear-gradient(rgb(112, 197, 206), rgb(188, 230, 236));
 }
+/* 夜の空の絵 (星と月つきの折り紙)。色のグラデーションの上に、夜に近づくほど濃く重ねる (opacity は app.js) */
+#skyNight {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 430px;
+  height: 842px;
+  opacity: 0;
+  pointer-events: none;
+}
 #skyPaper {
   position: absolute;
   left: 0;

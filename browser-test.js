@@ -835,6 +835,48 @@ async function run() {
       await mp.close();
     }
 
+    // ------------------------------------------------ 夜の空の絵
+    section('夜の空の絵');
+    {
+      const nc = await browser.newContext(PHONE);
+      const np = await nc.newPage();
+      await np.goto(URL);
+      await np.waitForFunction(() => window.__app);
+      await np.locator('#btnAdventure').tap();
+      const setScore = (sc) => np.evaluate((sc) => { const g = window.__app.game(); g.phase = 'play'; g.score = sc; g.pipes.length = 0; g.items.length = 0; window.__app.render(); return +getComputedStyle(document.getElementById('skyNight')).opacity; }, sc);
+      const art = await np.evaluate(async () => {
+        const im = document.getElementById('skyNight'); await im.decode();
+        const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+        const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+        const d = g.getImageData(0, 0, c.width, c.height).data;
+        let gold = 0, floor = 0;
+        for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+          const i = (y * c.width + x) * 4, r = d[i], gg = d[i + 1], b = d[i + 2];
+          if (r > 200 && gg > 150 && b < 110) gold++;
+          if (y > c.height - 30 && gg > b + 30) floor++;   // 床の緑が混ざっていないか (下の端)
+        }
+        return { w: c.width, h: c.height, gold, floor };
+      });
+      ok(art.w === 538 && art.h === 1053, `夜の絵は 538x1053 (${art.w}x${art.h})`);
+      ok(art.gold > 400, `夜の絵に金の星が写っている (${art.gold} 画素)`);
+      ok(art.floor === 0, `夜の絵の下の端に床の緑が混ざらない (${art.floor} 画素)`);
+      const o20 = await setScore(20), o25 = await setScore(25), o30 = await setScore(30), o35 = await setScore(35), o40 = await setScore(40);
+      ok(o20 === 0 && o40 === 0, `夜の絵は 20 点・40 点では出ない (${o20} / ${o40})`);
+      ok(o30 === 1 && o25 > 0.3 && o25 < 0.7 && o35 > 0.3 && o35 < 0.7, `夜 (30 点) でちょうど 1、前後の 25・35 点は途中 (${o25} / ${o30} / ${o35})`);
+      await nc.close();
+
+      // 絵が読めなければ、夜も元のグラデーション + 星と月のまま (絵を出さない)
+      const bc = await browser.newContext(PHONE);
+      await bc.route('**/sky-night.jpg', (r) => r.abort());
+      const bp = await bc.newPage();
+      await bp.goto(URL);
+      await bp.waitForFunction(() => window.__app);
+      await bp.locator('#btnAdventure').tap();
+      const ob = await bp.evaluate(() => { const g = window.__app.game(); g.phase = 'play'; g.score = 30; g.pipes.length = 0; g.items.length = 0; window.__app.render(); return +getComputedStyle(document.getElementById('skyNight')).opacity; });
+      ok(ob === 0, `夜の絵が読めないときは出さない (${ob})`);
+      await bc.close();
+    }
+
     // ------------------------------------------------ 無敵 (星) の鳥は光る
     section('無敵の光');
     {

@@ -185,3 +185,11 @@ test('柱の沈め具合: どのステージでも 0〜1。昼より夜のほう
     prev = s;
   }
 });
+
+test('夜の絵の濃さは、30 点 (夜) でちょうど 1、20 点以下と 40 点以上で 0、間はなめらか', () => {
+  assert.strictEqual(Core.palette(30).night, 1);
+  for (const sc of [0, 10, 20, 40, 41, 60]) assert.strictEqual(Core.palette(sc).night, 0, `${sc} 点`);
+  let prev = 0;
+  for (let sc = 20; sc <= 30; sc++) { const n = Core.palette(sc).night; assert.ok(n >= prev, `${sc} 点で増える`); prev = n; }
+  for (let sc = 30; sc <= 40; sc++) { const n = Core.palette(sc).night; assert.ok(n <= prev, `${sc} 点で減る`); prev = n; }
+});

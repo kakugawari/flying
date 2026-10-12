@@ -69,6 +69,8 @@
     return [Math.round(lerp(a[0], b[0], t)), Math.round(lerp(a[1], b[1], t)), Math.round(lerp(a[2], b[2], t))];
   }
 
+  const NIGHT_AT = 3 * STAGE_LEN;   // STAGES[3] = 夜
+
   function stageIndex(score) { return Math.min(STAGES.length - 1, Math.floor(score / STAGE_LEN)); }
 
   function palette(score) {
@@ -84,7 +86,9 @@
       cloud: lerp(a.cloud, b.cloud, t),
       stars: lerp(a.stars, b.stars, t),
       moon: lerp(a.moon, b.moon, t),
-      aurora: lerp(a.aurora, b.aurora, t)
+      aurora: lerp(a.aurora, b.aurora, t),
+      // 夜の紙の絵 (assets/sky-night.jpg) をどれだけ出すか。夜 (30 点) にちょうど 1、前後 10 点で 0 へ
+      night: Math.max(0, 1 - Math.abs(score - NIGHT_AT) / STAGE_LEN)
     };
   }
 
