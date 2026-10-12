@@ -24,7 +24,7 @@
     bestAdventure: document.getElementById('bestAdventure'),
     mute: document.getElementById('btnMute'),
     sky: document.getElementById('sky'),
-    skyArt: ['skyMorning', 'skyNoon', 'skySunset', 'skyDusk', 'skyNight', 'skyStarry', 'skyAurora'].map(function (id) { return document.getElementById(id); }),
+    skyArt: ['skyMorning', 'skyNoon', 'skySunset', 'skyDusk', 'skyNight', 'skyStarry', 'skyAurora', 'skySpace'].map(function (id) { return document.getElementById(id); }),
     skyPaper: document.getElementById('skyPaper')
   };
 
@@ -401,9 +401,9 @@
 
   // 空の色 (CSS のグラデーション)。変わったときだけ書き換える。単色でも linear-gradient で指定し、種類を変えない
   let skyKey = '';
-  // 空の絵 7 枚が全部読めたかどうか。1 枚でも読めなければ出さず、元のグラデーション + 星と月とオーロラ (canvas) のまま
+  // 空の絵 8 枚が全部読めたかどうか。1 枚でも読めなければ出さず、元のグラデーション + 星と月とオーロラ (canvas) のまま
   function skyArtReady() { return els.skyArt.every(function (im) { return im && im.complete && im.naturalWidth > 0; }); }
-  function skyArtWeights(pal) { return skyArtReady() ? pal.skyArt : [0, 0, 0, 0, 0, 0, 0]; }
+  function skyArtWeights(pal) { return skyArtReady() ? pal.skyArt : [0, 0, 0, 0, 0, 0, 0, 0]; }
   function applySky(pal) {
     const w = skyArtWeights(pal).map(function (v) { return v.toFixed(2); });
     const key = rgb(pal.sky[0]) + rgb(pal.sky[1]) + w.join();
@@ -411,6 +411,8 @@
     skyKey = key;
     els.sky.style.background = 'linear-gradient(' + rgb(pal.sky[0]) + ',' + rgb(pal.sky[1]) + ')';
     for (let i = 0; i < els.skyArt.length; i++) els.skyArt[i].style.opacity = w[i];
+    // 宇宙の絵 (横長) は、出ているあいだだけゆっくり動かす。出ていないときは止めて、動かさない
+    els.skyArt[els.skyArt.length - 1].style.animationPlayState = +w[w.length - 1] > 0 ? 'running' : 'paused';
     // 絵には紙の折り目が写っているので、同じ折り目 (skyPaper) は絵が出ているあいだ薄める
     els.skyPaper.style.opacity = (1 - w[0] * 0.8).toFixed(2);
   }
