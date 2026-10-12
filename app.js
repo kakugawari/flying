@@ -529,17 +529,37 @@
     ctx.save();
     ctx.translate(BIRD_X, game.birdY);
     ctx.rotate(game.phase === 'ready' ? 0 : Math.max(-0.5, Math.min(1.2, game.vy * 0.1)));
-    if (playing && game.play < game.starUntil) {
-      const g = ctx.createRadialGradient(0, 0, R, 0, 0, R + 14);
-      g.addColorStop(0, 'rgba(255,240,120,0.75)');
-      g.addColorStop(1, 'rgba(255,240,120,0)');
+    const star = playing && game.play < game.starUntil;
+    const pulse = 0.5 + 0.5 * Math.sin(game.frames * 0.3);
+    if (star) {
+      // 無敵: 脈打つ金色のやわらかい光 + 回るきらめき (小さい鳥でも遠目に分かるように、光は鳥の体より大きくする)
+      const rad = R + 24 + pulse * 8;
+      const g = ctx.createRadialGradient(0, 0, R * 0.4, 0, 0, rad);
+      g.addColorStop(0, 'rgba(255,250,200,0.95)');
+      g.addColorStop(0.5, 'rgba(255,226,90,0.6)');
+      g.addColorStop(1, 'rgba(255,200,60,0)');
       ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(0, 0, R + 14, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, rad, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fffbe0';
+      for (let i = 0; i < 4; i++) {
+        const a = game.frames * 0.12 + i * Math.PI / 2, d = R + 12 + Math.sin(game.frames * 0.2 + i * 1.7) * 5;
+        const sz = 4 + 3 * (0.5 + 0.5 * Math.sin(game.frames * 0.35 + i * 2.1));
+        const x = Math.cos(a) * d, y = Math.sin(a) * d;
+        ctx.beginPath();
+        ctx.moveTo(x, y - sz); ctx.lineTo(x + sz * 0.3, y - sz * 0.3); ctx.lineTo(x + sz, y); ctx.lineTo(x + sz * 0.3, y + sz * 0.3);
+        ctx.lineTo(x, y + sz); ctx.lineTo(x - sz * 0.3, y + sz * 0.3); ctx.lineTo(x - sz, y); ctx.lineTo(x - sz * 0.3, y - sz * 0.3);
+        ctx.closePath(); ctx.fill();
+      }
     }
     const sprite = birdImgs[BIRD_FRAMES[Math.floor(game.frames / 4) % 4]];
     if (birdLoaded === 3 && sprite) {
       // 体の中心が絵の中心 (2 倍の画素で作ってあるので、半分の大きさで貼る)
       ctx.drawImage(sprite, -sprite.width / 4, -sprite.height / 4, sprite.width / 2, sprite.height / 2);
+      if (star) {   // 鳥そのものも、脈に合わせて明るく光らせる (同じ絵をもう一度、加算で重ねる)
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.2 + 0.3 * pulse;
+        ctx.drawImage(sprite, -sprite.width / 4, -sprite.height / 4, sprite.width / 2, sprite.height / 2);
+      }
     } else {
       ctx.fillStyle = '#ffd93d';
       ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();

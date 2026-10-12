@@ -835,6 +835,41 @@ async function run() {
       await mp.close();
     }
 
+    // ------------------------------------------------ 無敵 (星) の鳥は光る
+    section('無敵の光');
+    {
+      const gc = await browser.newContext(PHONE);
+      const gp = await gc.newPage();
+      await gp.goto(URL);
+      await gp.waitForFunction(() => window.__app);
+      await gp.locator('#btnAdventure').tap();
+      const glow = await gp.evaluate(() => {
+        const a = window.__app, g = a.game(), cv = document.getElementById('game');
+        const k = cv.width / 430, ctx = cv.getContext('2d');
+        const measure = (starOn, frame) => {
+          g.phase = 'play'; g.birdY = 400; g.vy = 0; g.pipes.length = 0; g.items.length = 0; g.play = 100; g.frames = frame;
+          g.starUntil = starOn ? 1e9 : 0; g.hurtUntil = 0;
+          a.render();
+          // 鳥の中心から 28〜44pt の輪のあいだ (体のまわり) に、どれだけ色が乗っているか (不透明度の合計 / 面積)
+          const cx = 110 * k, cy = 400 * k, x0 = Math.floor(cx - 50 * k), y0 = Math.floor(cy - 50 * k), n = Math.ceil(100 * k);
+          const d = ctx.getImageData(x0, y0, n, n).data;
+          let sum = 0, cnt = 0;
+          for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+            const r = Math.hypot(x + x0 - cx, y + y0 - cy) / k;
+            if (r >= 28 && r <= 44) { sum += d[(y * n + x) * 4 + 3] / 255; cnt++; }
+          }
+          return sum / cnt;
+        };
+        // 脈打つ光なので、位相を変えて 3 回測り、いちばん弱い回でも比べる
+        const on = [], off = [];
+        for (const f of [100, 110, 120]) on.push(measure(true, f));
+        for (const f of [100, 110, 120]) off.push(measure(false, f));
+        return { on: Math.min(...on), off: Math.max(...off) };
+      });
+      ok(glow.on > glow.off + 0.08, `無敵の鳥は、体のまわりに光が乗る (光あり ${glow.on.toFixed(2)} / なし ${glow.off.toFixed(2)})`);
+      await gc.close();
+    }
+
     // ------------------------------------------------ 無敵 (星) の曲
     section('無敵の曲');
     {
