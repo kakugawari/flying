@@ -47,7 +47,7 @@ body {
   height: 842px;             /* 床の上まで (932 - 90) */
   background: linear-gradient(rgb(112, 197, 206), rgb(188, 230, 236));
 }
-/* 空の絵 (折り紙) 5 枚。色のグラデーションの上に、夕方 → 夕方から夜 → 夜 → 星空 → オーロラの順に重ねる (opacity は app.js) */
+/* 空の絵 (折り紙) 7 枚。色のグラデーションの上に、朝 → 昼 → 夕方 → 夕方から夜 → 夜 → 星空 → オーロラの順に重ねる (opacity は app.js) */
 .sky-art {
   position: absolute;
   left: 0;
