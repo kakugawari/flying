@@ -24,7 +24,7 @@
     bestAdventure: document.getElementById('bestAdventure'),
     mute: document.getElementById('btnMute'),
     sky: document.getElementById('sky'),
-    skyArt: ['skyNight', 'skyStarry', 'skyAurora'].map(function (id) { return document.getElementById(id); }),
+    skyArt: ['skySunset', 'skyDusk', 'skyNight', 'skyStarry', 'skyAurora'].map(function (id) { return document.getElementById(id); }),
     skyPaper: document.getElementById('skyPaper')
   };
 
@@ -401,17 +401,17 @@
 
   // 空の色 (CSS のグラデーション)。変わったときだけ書き換える。単色でも linear-gradient で指定し、種類を変えない
   let skyKey = '';
-  // 夜・星空・オーロラの絵が全部読めたかどうか。1 枚でも読めなければ出さず、元のグラデーション + 星と月とオーロラ (canvas) のまま
+  // 空の絵 5 枚が全部読めたかどうか。1 枚でも読めなければ出さず、元のグラデーション + 星と月とオーロラ (canvas) のまま
   function skyArtReady() { return els.skyArt.every(function (im) { return im && im.complete && im.naturalWidth > 0; }); }
-  function skyArtWeights(pal) { return skyArtReady() ? pal.skyArt : [0, 0, 0]; }
+  function skyArtWeights(pal) { return skyArtReady() ? pal.skyArt : [0, 0, 0, 0, 0]; }
   function applySky(pal) {
     const w = skyArtWeights(pal).map(function (v) { return v.toFixed(2); });
     const key = rgb(pal.sky[0]) + rgb(pal.sky[1]) + w.join();
     if (key === skyKey) return;
     skyKey = key;
     els.sky.style.background = 'linear-gradient(' + rgb(pal.sky[0]) + ',' + rgb(pal.sky[1]) + ')';
-    for (let i = 0; i < 3; i++) els.skyArt[i].style.opacity = w[i];
-    // 絵には紙の折り目が写っているので、同じ折り目 (skyPaper) は絵が濃いほど薄める
+    for (let i = 0; i < els.skyArt.length; i++) els.skyArt[i].style.opacity = w[i];
+    // 絵には紙の折り目が写っているので、同じ折り目 (skyPaper) は絵が出ているあいだ薄める
     els.skyPaper.style.opacity = (1 - w[0] * 0.8).toFixed(2);
   }
 
@@ -426,16 +426,18 @@
   }
 
   function drawBackground(pal) {
-    const own = Math.pow(1 - skyArtWeights(pal)[0], 3);   // 絵が出ている分だけ、絵の中の星・月・オーロラに任せる (3 乗で、重なる間は早めに引っ込める)
+    const own = Math.pow(1 - skyArtWeights(pal)[1], 3);   // 夕方から夜の絵 (星と月がある) が出ている分だけ、絵の中の星・月・オーロラに任せる (3 乗で、重なる間は早めに引っ込める)
     if (pal.stars * own > 0.01) drawStars(pal.stars * own);
     if (pal.aurora * own > 0.01) drawAurora(pal.aurora * own);
     if (pal.moon * own > 0.01) drawMoon(pal.moon * own);
+    // 空の絵にも雲があるので、流れる雲は絵が出ているあいだ薄くする (雲の上に雲が重なって見えないように)
+    const cp = { cloud: pal.cloud * (1 - 0.65 * skyArtWeights(pal)[0]), shade: pal.shade };
     const span = W + 160;
     const drift = (game.frames * 0.3) % span;
-    drawPaperCloud('cloud2', W + 80 - drift, 170, pal, 1.0);
-    drawPaperCloud('cloud1', W + 80 - ((drift + 230) % span), 290, pal, 0.7);
-    drawPaperCloud('cloud4', W + 80 - ((drift + 380) % span), 130, pal, 0.55);
-    drawPaperCloud('cloud3', W + 80 - ((drift + 120) % span), 420, pal, 0.8);
+    drawPaperCloud('cloud2', W + 80 - drift, 170, cp, 1.0);
+    drawPaperCloud('cloud1', W + 80 - ((drift + 230) % span), 290, cp, 0.7);
+    drawPaperCloud('cloud4', W + 80 - ((drift + 380) % span), 130, cp, 0.55);
+    drawPaperCloud('cloud3', W + 80 - ((drift + 120) % span), 420, cp, 0.8);
   }
 
   function drawGround(pal) {
