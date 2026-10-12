@@ -843,8 +843,9 @@ async function run() {
       await np.goto(URL);
       await np.waitForFunction(() => window.__app);
       await np.locator('#btnAdventure').tap();
+      // 切り替わりは CSS で 0.6 秒かけて動くので、目標の値 (style.opacity) を読む
       const ops = (sc) => np.evaluate((sc) => { const g = window.__app.game(); g.phase = 'play'; g.score = sc; g.pipes.length = 0; g.items.length = 0; window.__app.render();
-        return ['skyNight', 'skyStarry', 'skyAurora'].map((id) => +getComputedStyle(document.getElementById(id)).opacity); }, sc);
+        return ['skyNight', 'skyStarry', 'skyAurora'].map((id) => +document.getElementById(id).style.opacity); }, sc);
       const arts = await np.evaluate(async () => {
         const out = {};
         for (const id of ['skyNight', 'skyStarry', 'skyAurora']) {
@@ -858,20 +859,37 @@ async function run() {
             if (d[i + 1] > 140 && d[i + 1] > d[i] + 40 && d[i + 1] > d[i + 2] - 20) green++;   // オーロラの緑
             lum += (d[i] + d[i + 1] + d[i + 2]) / 3;
           }
-          out[id] = { w: c.width, h: c.height, gold, green, lum: lum / (d.length / 4) };
+          // 金色の塊の大きさ: 月 (いちばん大きい塊と、そのまわり。陰の所は別の塊に割れる) 以外の星が、アイテムの星 (40pt) と見分けがつくくらい小さいか
+          const W = c.width, H = c.height, seen = new Uint8Array(W * H), blobs = [];
+          const isGold = (i) => d[i * 4] > 170 && d[i * 4 + 1] > 120 && d[i * 4 + 2] < 140 && d[i * 4] > d[i * 4 + 2] + 60;
+          for (let p0 = 0; p0 < W * H; p0++) {
+            if (seen[p0] || !isGold(p0)) continue;
+            let x0 = W, x1 = 0, y0 = H, y1 = 0, area = 0; const st = [p0]; seen[p0] = 1;
+            while (st.length) { const p = st.pop(), x = p % W, y = (p / W) | 0; area++; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+              for (const q of [p - 1, p + 1, p - W, p + W]) if (q >= 0 && q < W * H && !seen[q] && isGold(q)) { seen[q] = 1; st.push(q); } }
+            blobs.push({ x0, x1, y0, y1, area, size: Math.max(x1 - x0, y1 - y0) + 1 });
+          }
+          const moon = blobs.reduce((m, b) => (b.area > m.area ? b : m), { area: 0, x0: 0, x1: -1, y0: 0, y1: -1 });
+          const nearMoon = (b) => b.x1 >= moon.x0 - 14 && b.x0 <= moon.x1 + 14 && b.y1 >= moon.y0 - 14 && b.y0 <= moon.y1 + 14;
+          const big = Math.max(0, ...blobs.filter((b) => b !== moon && !nearMoon(b)).map((b) => b.size));
+          out[id] = { w: c.width, h: c.height, gold, green, big, lum: lum / (d.length / 4) };
         }
         return out;
       });
       for (const id of ['skyNight', 'skyStarry', 'skyAurora']) ok(arts[id].w === 538 && arts[id].h === 1053, `${id} は 538x1053 (${arts[id].w}x${arts[id].h})`);
       ok(arts.skyNight.gold > 300 && arts.skyStarry.gold > 300, `夜と星空の絵に金の星が写っている (${arts.skyNight.gold} / ${arts.skyStarry.gold} 画素)`);
       ok(arts.skyAurora.green > 4000 && arts.skyNight.green < 100 && arts.skyStarry.green < 100, `オーロラの絵だけ緑が多い (${arts.skyAurora.green} / ${arts.skyNight.green} / ${arts.skyStarry.green} 画素)`);
+      ok(Object.values(arts).every((a) => a.big <= 24), `背景の星は小さい (最大 ${Object.values(arts).map((a) => a.big).join(' / ')} 画素。538 幅で 24 画素 = 19pt 以下。アイテムの星は 40pt)`);
       ok(Object.values(arts).every((a) => a.lum < 110), `3 枚とも夜の暗さ (明るさ ${Object.values(arts).map((a) => a.lum.toFixed(0)).join(' / ')})`);
-      const o = {}; for (const sc of [0, 20, 25, 30, 35, 40, 45, 50, 70]) o[sc] = await ops(sc);
+      const o = {}; for (const sc of [0, 20, 25, 30, 34, 35, 44, 45, 70]) o[sc] = await ops(sc);
       ok(o[0].every((v) => v === 0) && o[20].every((v) => v === 0), '20 点までは絵を出さない');
-      ok(o[30][0] === 1 && o[30][1] === 0 && o[30][2] === 0, `30 点は夜の絵だけ (${o[30]})`);
-      ok(o[40][0] === 1 && o[40][1] === 1 && o[40][2] === 0, `40 点は星空の絵まで (${o[40]})`);
-      ok(o[50].every((v) => v === 1) && o[70].every((v) => v === 1), `50 点からオーロラの絵まで全部 (${o[50]})`);
-      ok(o[25][0] > 0.3 && o[25][0] < 0.7 && o[35][1] > 0.3 && o[35][1] < 0.7 && o[45][2] > 0.3 && o[45][2] < 0.7, `前後の 5 点は途中 (${o[25][0]} / ${o[35][1]} / ${o[45][2]})`);
+      ok(o[30][0] === 1 && o[30][1] === 0 && o[30][2] === 0 && o[34][1] === 0, `30〜34 点は夜の絵だけ (${o[30]} / ${o[34]})`);
+      ok(o[35][0] === 1 && o[35][1] === 1 && o[35][2] === 0 && o[44][2] === 0, `35 点で星空の絵に替わる (${o[35]} / ${o[44]})`);
+      ok(o[45].every((v) => v === 1) && o[70].every((v) => v === 1), `45 点からオーロラの絵まで全部 (${o[45]})`);
+      ok(o[25][0] > 0.3 && o[25][0] < 0.7, `夜の絵は 25 点で途中 (${o[25][0]})`);
+      // 月が二つ重なって見える時間は短い: 重ね合わせは 0.6 秒以内
+      const tr = await np.evaluate(() => { const cs = getComputedStyle(document.getElementById('skyStarry')); return { dur: cs.transitionDuration, prop: cs.transitionProperty }; });
+      ok(tr.prop === 'opacity' && parseFloat(tr.dur) > 0 && parseFloat(tr.dur) <= 0.7, `星空・オーロラの絵は短い重ね合わせで替わる (${tr.prop} ${tr.dur})`);
       await nc.close();
 
       // 1 枚でも絵が読めなければ、元のグラデーション + 星と月 (canvas) のまま
@@ -882,7 +900,7 @@ async function run() {
       await bp.waitForFunction(() => window.__app);
       await bp.locator('#btnAdventure').tap();
       const ob = await bp.evaluate(() => { const g = window.__app.game(); g.phase = 'play'; g.score = 45; g.pipes.length = 0; g.items.length = 0; window.__app.render();
-        return ['skyNight', 'skyStarry', 'skyAurora'].map((id) => +getComputedStyle(document.getElementById(id)).opacity); });
+        return ['skyNight', 'skyStarry', 'skyAurora'].map((id) => +document.getElementById(id).style.opacity); });
       ok(ob.every((v) => v === 0), `絵が 1 枚でも読めないときは、どれも出さない (${ob})`);
       await bc.close();
     }

@@ -186,18 +186,19 @@ test('柱の沈め具合: どのステージでも 0〜1。昼より夜のほう
   }
 });
 
-test('夜・星空・オーロラの絵の濃さ: 夜は 20→30 点、星空は 30→40 点、オーロラは 40→50 点で 0 → 1、重ねているあいだ下の絵は 1 のまま', () => {
+test('夜・星空・オーロラの絵: 夜は 20→30 点でなめらかに、星空は 35 点、オーロラは 45 点で切り替わる (月が二つ重なる時間を短くするため)', () => {
   assert.deepStrictEqual(Core.palette(0).skyArt, [0, 0, 0]);
   assert.deepStrictEqual(Core.palette(20).skyArt, [0, 0, 0]);
   assert.deepStrictEqual(Core.palette(30).skyArt, [1, 0, 0]);
-  assert.deepStrictEqual(Core.palette(40).skyArt, [1, 1, 0]);
-  assert.deepStrictEqual(Core.palette(50).skyArt, [1, 1, 1]);
+  assert.deepStrictEqual(Core.palette(34).skyArt, [1, 0, 0]);
+  assert.deepStrictEqual(Core.palette(35).skyArt, [1, 1, 0]);
+  assert.deepStrictEqual(Core.palette(44).skyArt, [1, 1, 0]);
+  assert.deepStrictEqual(Core.palette(45).skyArt, [1, 1, 1]);
   assert.deepStrictEqual(Core.palette(80).skyArt, [1, 1, 1]);
+  assert.ok(Math.abs(Core.palette(25).skyArt[0] - 0.5) < 1e-9);
   for (let sc = 0; sc < 60; sc++) {
     const a = Core.palette(sc).skyArt, b = Core.palette(sc + 1).skyArt;
     for (let i = 0; i < 3; i++) assert.ok(b[i] >= a[i], `${sc} 点で絵 ${i} が減らない`);
     assert.ok(a[0] >= a[1] && a[1] >= a[2], `${sc} 点: 下の絵ほど濃い (透けない)`);
   }
-  assert.strictEqual(Core.palette(35).skyArt[0], 1);
-  assert.ok(Math.abs(Core.palette(35).skyArt[1] - 0.5) < 1e-9);
 });
