@@ -69,6 +69,8 @@
     return [Math.round(lerp(a[0], b[0], t)), Math.round(lerp(a[1], b[1], t)), Math.round(lerp(a[2], b[2], t))];
   }
 
+  const NIGHT_AT = 3 * STAGE_LEN;   // STAGES[3] = 夜
+
   function stageIndex(score) { return Math.min(STAGES.length - 1, Math.floor(score / STAGE_LEN)); }
 
   function palette(score) {
@@ -84,7 +86,11 @@
       cloud: lerp(a.cloud, b.cloud, t),
       stars: lerp(a.stars, b.stars, t),
       moon: lerp(a.moon, b.moon, t),
-      aurora: lerp(a.aurora, b.aurora, t)
+      aurora: lerp(a.aurora, b.aurora, t),
+      // 夜・星空・オーロラの紙の絵 (assets/sky-night / starry / aurora.jpg) をどれだけ出すか。
+      // 下から重ねて、夜 (30 点) へ 20→30 点で入り、星空 (40 点) を 30→40、オーロラ (50 点) を 40→50 で上に重ねる
+      // (下の絵は 1 のまま残すので、重ねている間に下のグラデーションが透けない)
+      skyArt: [0, 1, 2].map(function (i) { return Math.max(0, Math.min(1, (score - (NIGHT_AT + (i - 1) * STAGE_LEN)) / STAGE_LEN)); })
     };
   }
 
