@@ -835,6 +835,75 @@ async function run() {
       await mp.close();
     }
 
+    // ------------------------------------------------ 無敵 (星) の鳥は光る
+    section('無敵の光');
+    {
+      const gc = await browser.newContext(PHONE);
+      const gp = await gc.newPage();
+      await gp.goto(URL);
+      await gp.waitForFunction(() => window.__app);
+      await gp.locator('#btnAdventure').tap();
+      const glow = await gp.evaluate(() => {
+        const a = window.__app, g = a.game(), cv = document.getElementById('game');
+        const k = cv.width / 430, ctx = cv.getContext('2d');
+        const measure = (starOn, frame) => {
+          g.phase = 'play'; g.birdY = 400; g.vy = 0; g.pipes.length = 0; g.items.length = 0; g.play = 100; g.frames = frame;
+          g.starUntil = starOn ? 1e9 : 0; g.hurtUntil = 0;
+          a.render();
+          // 鳥の中心から 28〜44pt の輪のあいだ (体のまわり) に、どれだけ色が乗っているか (不透明度の合計 / 面積)
+          const cx = 110 * k, cy = 400 * k, x0 = Math.floor(cx - 50 * k), y0 = Math.floor(cy - 50 * k), n = Math.ceil(100 * k);
+          const d = ctx.getImageData(x0, y0, n, n).data;
+          let sum = 0, cnt = 0;
+          for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+            const r = Math.hypot(x + x0 - cx, y + y0 - cy) / k;
+            if (r >= 28 && r <= 44) { sum += d[(y * n + x) * 4 + 3] / 255; cnt++; }
+          }
+          return sum / cnt;
+        };
+        // 脈打つ光なので、位相を変えて 3 回測り、いちばん弱い回でも比べる
+        const on = [], off = [];
+        for (const f of [100, 110, 120]) on.push(measure(true, f));
+        for (const f of [100, 110, 120]) off.push(measure(false, f));
+        return { on: Math.min(...on), off: Math.max(...off) };
+      });
+      ok(glow.on > glow.off + 0.08, `無敵の鳥は、体のまわりに光が乗る (光あり ${glow.on.toFixed(2)} / なし ${glow.off.toFixed(2)})`);
+      await gc.close();
+    }
+
+    // ------------------------------------------------ 無敵 (星) の曲
+    section('無敵の曲');
+    {
+      const mc = await browser.newContext(PHONE);
+      const mp = await mc.newPage();
+      await mp.goto(URL);
+      await mp.waitForFunction(() => window.__app);
+      await mp.locator('#btnAdventure').tap();
+      await mp.waitForFunction(() => window.__app.audio());
+      // 出口の音量を 50ms ごとに測る。2 秒 (120 コマ) だけ無敵にして、鳥は浮かべたままにする
+      await mp.evaluate(() => {
+        const a = window.__app.audio(), g = window.__app.game();
+        const an = a.ctx.createAnalyser(); an.fftSize = 1024; a.master.connect(an);
+        const buf = new Float32Array(an.fftSize);
+        window.__probe = { t0: performance.now(), peaks: [] };
+        g.phase = 'play'; g.starUntil = g.play + 120;
+        setInterval(() => {
+          g.birdY = 400; g.vy = 0; g.pipes.length = 0; g.items.length = 0;
+          an.getFloatTimeDomainData(buf);
+          let m = 0; for (const v of buf) m = Math.max(m, Math.abs(v));
+          window.__probe.peaks.push({ t: (performance.now() - window.__probe.t0) / 1000, m, star: g.play < g.starUntil });
+        }, 50);
+      });
+      await mp.waitForTimeout(2600);
+      const pr = await mp.evaluate(() => window.__probe.peaks);
+      const peak = (a, b) => Math.max(0, ...pr.filter((x) => x.t >= a && x.t < b).map((x) => x.m));
+      const during = peak(0.3, 0.9), after = peak(1.5, 1.95);
+      const starAt19 = pr.filter((x) => x.t >= 1.5 && x.t < 1.95).every((x) => x.star);
+      ok(during > 0.02, `無敵のあいだ曲が鳴る (最大 ${during.toFixed(3)})`);
+      ok(starAt19 && after < 0.005, `無敵が切れる前 (1.5〜1.95 秒。まだ無敵) に、音は元に戻って静か (最大 ${after.toFixed(4)})`);
+      ok(during < 0.5, `曲が大きすぎない (最大 ${during.toFixed(3)} < 0.5)`);
+      await mc.close();
+    }
+
     // ------------------------------------------------ アイコン (用意していれば)
     section('アイコン');
     const desk = await browser.newPage();

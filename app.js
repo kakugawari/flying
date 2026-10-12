@@ -211,6 +211,28 @@
     else if (name === 'hit') tone(220, 0.2, 'sawtooth', 0.2, 0, 90);
     else if (name === 'over') tone(300, 0.45, 'sawtooth', 0.22, 0, 70);
   }
+  // 無敵 (星) の間だけ鳴る、はずむような速い曲。曲は「いまの無敵の残り」から毎コマ決める:
+  // 切れる 1 秒前に鳴らし終えて、効果が終わる前に元の静かな音へ戻す。ポーズ・終わり・タイトルでは鳴らさない
+  const STAR_MUSIC_STOP = 60;              // 無敵が切れる 60 コマ (1 秒) 前に止める
+  const STAR_STEP = 0.08;                  // 16 分音符 1 つの長さ (秒)。速いほど「急いでいる」感じ
+  const STAR_TUNE = [72, 76, 79, 84, 79, 76, 79, 84,  77, 81, 84, 89, 84, 81, 84, 89,
+                     79, 83, 86, 91, 86, 83, 86, 91,  84, 79, 76, 79, 84, 88, 91, 96];   // ド・ファ・ソ・ドのアルペジオ (MIDI 番号)
+  const STAR_BASS = [48, 53, 55, 48];      // 8 つごとの低い音
+  let starNext = 0, starStep = 0;
+  function midiHz(n) { return 440 * Math.pow(2, (n - 69) / 12); }
+  function starMusic() {
+    const on = actx && !muted && !paused && game && game.phase === 'play' &&
+      !els.vStart.classList.contains('on') && game.starUntil - game.play > STAR_MUSIC_STOP;
+    if (!on) { starNext = 0; return; }
+    const now = actx.currentTime;
+    if (starNext < now) { starNext = now + 0.02; starStep = 0; }   // 取った直後・途切れたあとは頭から
+    while (starNext < now + 0.12) {
+      const i = starStep % STAR_TUNE.length, d = starNext - now;
+      tone(midiHz(STAR_TUNE[i]), STAR_STEP * 0.85, 'square', 0.1, d);
+      if (i % 8 === 0) tone(midiHz(STAR_BASS[(i / 8) | 0]), STAR_STEP * 4, 'triangle', 0.16, d);
+      starNext += STAR_STEP; starStep++;
+    }
+  }
   function showMute() { els.mute.classList.toggle('off', muted); els.mute.setAttribute('aria-pressed', String(!muted)); }
 
   // ---- 流れの切り替え ----
@@ -507,17 +529,37 @@
     ctx.save();
     ctx.translate(BIRD_X, game.birdY);
     ctx.rotate(game.phase === 'ready' ? 0 : Math.max(-0.5, Math.min(1.2, game.vy * 0.1)));
-    if (playing && game.play < game.starUntil) {
-      const g = ctx.createRadialGradient(0, 0, R, 0, 0, R + 14);
-      g.addColorStop(0, 'rgba(255,240,120,0.75)');
-      g.addColorStop(1, 'rgba(255,240,120,0)');
+    const star = playing && game.play < game.starUntil;
+    const pulse = 0.5 + 0.5 * Math.sin(game.frames * 0.3);
+    if (star) {
+      // 無敵: 脈打つ金色のやわらかい光 + 回るきらめき (小さい鳥でも遠目に分かるように、光は鳥の体より大きくする)
+      const rad = R + 24 + pulse * 8;
+      const g = ctx.createRadialGradient(0, 0, R * 0.4, 0, 0, rad);
+      g.addColorStop(0, 'rgba(255,250,200,0.95)');
+      g.addColorStop(0.5, 'rgba(255,226,90,0.6)');
+      g.addColorStop(1, 'rgba(255,200,60,0)');
       ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(0, 0, R + 14, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(0, 0, rad, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fffbe0';
+      for (let i = 0; i < 4; i++) {
+        const a = game.frames * 0.12 + i * Math.PI / 2, d = R + 12 + Math.sin(game.frames * 0.2 + i * 1.7) * 5;
+        const sz = 4 + 3 * (0.5 + 0.5 * Math.sin(game.frames * 0.35 + i * 2.1));
+        const x = Math.cos(a) * d, y = Math.sin(a) * d;
+        ctx.beginPath();
+        ctx.moveTo(x, y - sz); ctx.lineTo(x + sz * 0.3, y - sz * 0.3); ctx.lineTo(x + sz, y); ctx.lineTo(x + sz * 0.3, y + sz * 0.3);
+        ctx.lineTo(x, y + sz); ctx.lineTo(x - sz * 0.3, y + sz * 0.3); ctx.lineTo(x - sz, y); ctx.lineTo(x - sz * 0.3, y - sz * 0.3);
+        ctx.closePath(); ctx.fill();
+      }
     }
     const sprite = birdImgs[BIRD_FRAMES[Math.floor(game.frames / 4) % 4]];
     if (birdLoaded === 3 && sprite) {
       // 体の中心が絵の中心 (2 倍の画素で作ってあるので、半分の大きさで貼る)
       ctx.drawImage(sprite, -sprite.width / 4, -sprite.height / 4, sprite.width / 2, sprite.height / 2);
+      if (star) {   // 鳥そのものも、脈に合わせて明るく光らせる (同じ絵をもう一度、加算で重ねる)
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.2 + 0.3 * pulse;
+        ctx.drawImage(sprite, -sprite.width / 4, -sprite.height / 4, sprite.width / 2, sprite.height / 2);
+      }
     } else {
       ctx.fillStyle = '#ffd93d';
       ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
@@ -634,6 +676,7 @@
     lastT = t;
     acc += dt;
     while (acc >= STEP_MS) { advance(); acc -= STEP_MS; }
+    starMusic();
     render();
     requestAnimationFrame(frame);
   }
@@ -664,6 +707,8 @@
     window.__app = {
       game: function () { return game; },
       paused: function () { return paused; },
+      // テスト用: 出口の音量を測るために、音の出口をのぞく
+      audio: function () { return actx ? { ctx: actx, master: master } : null; },
       step: function (n) { for (let i = 0; i < (n || 1); i++) advance(); },
       render: render,
       startGame: startGame,
