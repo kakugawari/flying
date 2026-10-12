@@ -114,6 +114,20 @@ test('スター中は柱に当たってもハートが減らない', () => {
   assert.strictEqual(s.hearts, 3);
 });
 
+test('星の効果は 6 秒 (360 コマ)、亀は 4 秒 (240 コマ) のまま', () => {
+  assert.strictEqual(Core.STAR_FRAMES, 360);
+  assert.strictEqual(Core.SLOW_FRAMES, 240);
+  for (const [type, key, frames] of [['star', 'starUntil', 360], ['slow', 'slowUntil', 240]]) {
+    const s = Core.create('adventure', 3);
+    s.phase = 'play'; s.play = 50;
+    s.items.push({ x: Core.BIRD_X, y: s.birdY, type });
+    Core.step(s);
+    // 取った次のコマで 1 コマ進むので、残りは「効果の長さ」ちょうどか 1 コマ手前
+    const left = s[key] - s.play;
+    assert.ok(left >= frames - 1 && left <= frames, `${type}: 残り ${left} コマ (${frames})`);
+  }
+});
+
 test('ハートは 3 より増えない / 満タンならアイテムはハートにならない', () => {
   const s = Core.create('adventure', 3);
   s.phase = 'play';
