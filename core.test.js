@@ -154,12 +154,13 @@ test('スローは柱の速さを落とす', () => {
   assert.ok(Math.abs(s.groundOffset - normal * 0.6) < 1e-9);
 });
 
-test('ステージ: 10 点ごとに進み、色は連続して変わる', () => {
-  assert.strictEqual(Core.stageIndex(9), 0);
-  assert.strictEqual(Core.stageIndex(10), 1);
+test('ステージ: 15 点ごとに進み、色は連続して変わる', () => {
+  assert.strictEqual(Core.STAGE_LEN, 15);
+  assert.strictEqual(Core.stageIndex(14), 0);
+  assert.strictEqual(Core.stageIndex(15), 1);
   assert.strictEqual(Core.stageIndex(999), Core.STAGES.length - 1);
   let prev = Core.palette(0).sky[0];
-  for (let sc = 1; sc <= 60; sc++) {
+  for (let sc = 1; sc <= 100; sc++) {
     const cur = Core.palette(sc).sky[0];
     const d = Math.max(...cur.map((v, i) => Math.abs(v - prev[i])));
     assert.ok(d <= 40, `${sc} 点で色が急に変わった (${d})`);
@@ -176,7 +177,7 @@ test('クラシックの隙間・速さは 180→140 / 2.1→2.5', () => {
 
 test('柱の沈め具合: どのステージでも 0〜1。昼より夜のほうが深く、色と同じく連続して変わる', () => {
   assert.strictEqual(Core.palette(0).shade, 0);
-  assert.ok(Core.palette(35).shade > Core.palette(15).shade);
+  assert.ok(Core.palette(55).shade > Core.palette(20).shade);
   let prev = Core.palette(0).shade;
   for (let sc = 1; sc <= 80; sc++) {
     const s = Core.palette(sc).shade;
@@ -186,20 +187,22 @@ test('柱の沈め具合: どのステージでも 0〜1。昼より夜のほう
   }
 });
 
-test('空の絵 8 枚: 朝は最初から、昼 10・夕方 20・夜 30・星空 40・オーロラ 50・宇宙 60 点でぱっと、夕方から夜は 20→30 点でなめらか (下の絵は 1 のまま残る)', () => {
-  assert.deepStrictEqual(Core.palette(0).skyArt, [1, 0, 0, 0, 0, 0, 0, 0]);
-  assert.deepStrictEqual(Core.palette(9).skyArt, [1, 0, 0, 0, 0, 0, 0, 0]);
-  assert.deepStrictEqual(Core.palette(10).skyArt, [1, 1, 0, 0, 0, 0, 0, 0]);
-  assert.deepStrictEqual(Core.palette(19).skyArt, [1, 1, 0, 0, 0, 0, 0, 0]);
-  assert.deepStrictEqual(Core.palette(20).skyArt, [1, 1, 1, 0, 0, 0, 0, 0]);
-  assert.ok(Math.abs(Core.palette(25).skyArt[3] - 0.5) < 1e-9);
-  assert.deepStrictEqual(Core.palette(29).skyArt.map((v) => Math.round(v * 10) / 10), [1, 1, 1, 0.9, 0, 0, 0, 0]);
-  assert.deepStrictEqual(Core.palette(30).skyArt, [1, 1, 1, 1, 1, 0, 0, 0]);
-  assert.deepStrictEqual(Core.palette(40).skyArt, [1, 1, 1, 1, 1, 1, 0, 0]);
-  assert.deepStrictEqual(Core.palette(50).skyArt, [1, 1, 1, 1, 1, 1, 1, 0]);
-  assert.deepStrictEqual(Core.palette(60).skyArt, [1, 1, 1, 1, 1, 1, 1, 1]);
-  assert.deepStrictEqual(Core.palette(200).skyArt, [1, 1, 1, 1, 1, 1, 1, 1]);
-  for (let sc = 0; sc < 70; sc++) {
+test('空の絵 8 枚: 朝は最初から、昼 15・夕方 30・夜 45・星空 60・オーロラ 75・宇宙 90 点でぱっと、夕方から夜は 30→45 点でなめらか (下の絵は 1 のまま残る)', () => {
+  const L = Core.STAGE_LEN;
+  const show = (n) => [1, 1, 1, 1, 1, 1, 1, 1].map((v, i) => (i < n ? v : 0));
+  assert.deepStrictEqual(Core.palette(0).skyArt, show(1));
+  assert.deepStrictEqual(Core.palette(L - 1).skyArt, show(1));
+  assert.deepStrictEqual(Core.palette(L).skyArt, show(2));
+  assert.deepStrictEqual(Core.palette(2 * L - 1).skyArt, show(2));
+  assert.deepStrictEqual(Core.palette(2 * L).skyArt, show(3));
+  assert.ok(Math.abs(Core.palette(2.5 * L).skyArt[3] - 0.5) < 1e-9);
+  assert.deepStrictEqual(Core.palette(3 * L - 1).skyArt.map((v) => Math.round(v * 10) / 10), [1, 1, 1, 0.9, 0, 0, 0, 0]);
+  assert.deepStrictEqual(Core.palette(3 * L).skyArt, show(5));
+  assert.deepStrictEqual(Core.palette(4 * L).skyArt, show(6));
+  assert.deepStrictEqual(Core.palette(5 * L).skyArt, show(7));
+  assert.deepStrictEqual(Core.palette(6 * L).skyArt, show(8));
+  assert.deepStrictEqual(Core.palette(200).skyArt, show(8));
+  for (let sc = 0; sc < 7 * L + 10; sc++) {
     const a = Core.palette(sc).skyArt, b = Core.palette(sc + 1).skyArt;
     for (let i = 0; i < 8; i++) assert.ok(b[i] >= a[i], `${sc} 点で絵 ${i} が減らない`);
     // 上の絵が出始めるとき、下の絵は 1 (透けない)。夕方から夜 (3) だけは夜 (4) が出るまで途中
@@ -207,9 +210,9 @@ test('空の絵 8 枚: 朝は最初から、昼 10・夕方 20・夜 30・星空
   }
 });
 
-test('宇宙 (60 点) のステージがある: 最後のステージで、色は 60 点から宇宙の色のまま', () => {
-  assert.strictEqual(Core.STAGES[Core.stageIndex(60)].name, '宇宙');
-  assert.strictEqual(Core.stageIndex(59), Core.stageIndex(50));
-  assert.deepStrictEqual(Core.palette(60).sky, Core.palette(99).sky);
-  assert.deepStrictEqual(Core.palette(60).sky, Core.STAGES[Core.STAGES.length - 1].sky);
+test('宇宙 (90 点) のステージがある: 最後のステージで、色は 90 点から宇宙の色のまま', () => {
+  assert.strictEqual(Core.STAGES[Core.stageIndex(90)].name, '宇宙');
+  assert.strictEqual(Core.stageIndex(89), Core.stageIndex(75));
+  assert.deepStrictEqual(Core.palette(90).sky, Core.palette(150).sky);
+  assert.deepStrictEqual(Core.palette(90).sky, Core.STAGES[Core.STAGES.length - 1].sky);
 });

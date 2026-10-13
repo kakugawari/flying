@@ -35,7 +35,7 @@
   const ITEM_EVERY = 4;
   const ITEM_FROM_SCORE = 2;
   const ITEM_R = 14;
-  const STAGE_LEN = 10;
+  const STAGE_LEN = 15;
 
   // クラシックは一発勝負。アドベンチャーはハート 3 つで、難しさもなだらかに上がる
   const MODES = {
@@ -43,7 +43,7 @@
     adventure: { gapStart: 200, gapMin: 150, gapStep: 2, speedStart: 2.1, speedMax: 2.5, speedStep: 0.016, hearts: 3 }
   };
 
-  // 10 点ごとの空。隣の段へ 1 点ずつ色を混ぜる
+  // 15 点ごとの空 (STAGE_LEN。10 点では「すぐ変わる」と言われた)。隣の段へ 1 点ずつ色を混ぜる
   const STAGES = [
     { name: '朝',       sky: [[94, 171, 212], [131, 186, 207]], pipe: [[236, 140, 106], [201, 107, 78], [217, 120, 90]], ground: [[222, 216, 149], [210, 176, 72]], shade: 0, cloud: 0.7,  stars: 0,   moon: 0,   aurora: 0 },
     { name: '昼',       sky: [[64, 150, 224], [160, 214, 248]],  pipe: [[95, 182, 90], [62, 138, 59], [79, 163, 74]],     ground: [[190, 214, 110], [160, 140, 58]], shade: 0, cloud: 0.85, stars: 0,   moon: 0,   aurora: 0 },
@@ -89,11 +89,11 @@
       moon: lerp(a.moon, b.moon, t),
       aurora: lerp(a.aurora, b.aurora, t),
       // 空の紙の絵 8 枚 (assets/sky-morning / noon / sunset / dusk / night / starry / aurora / space.jpg) をどれだけ出すか。この順に下から重ねる。
-      // 朝は最初から。昼 10 点・夕方 20 点・夜 30 点・星空 40 点・オーロラ 50 点・宇宙 60 点 = ステージの頭 (色がそのステージの色になる点) でぱっと替える。
-      // 夕方から夜は 20→30 点でなめらかに (夕方と構図がそろった組なので、ゆっくり重ねると夕焼けが暮れていく)。
+      // 朝は最初から。昼 15 点・夕方 30 点・夜 45 点・星空 60 点・オーロラ 75 点・宇宙 90 点 = ステージの頭 (色がそのステージの色になる点) でぱっと替える。
+      // 夕方から夜は 30→45 点でなめらかに (夕方と構図がそろった組なので、ゆっくり重ねると夕焼けが暮れていく)。
       // 絵ごとに太陽や月が違うので、混ぜ続けると二つ重なって見える。ぱっと替えるときも CSS の 0.6 秒だけ重ねる。
       // 下の絵は 1 のまま残すので、重なっている間もグラデーションは透けない (絵は 1 枚目から全面を覆うので、グラデーションが見えるのは絵が読めないときだけ)
-      // 宇宙 (60 点) は、横長の絵をゆっくり動かして見せる (CSS。ずっと同じ背景で飽きないように)
+      // 宇宙 (90 点) は、横長の絵をゆっくり動かして見せる (CSS。ずっと同じ背景で飽きないように)
       skyArt: [1, score >= STAGE_LEN ? 1 : 0, score >= 2 * STAGE_LEN ? 1 : 0, Math.max(0, Math.min(1, (score - 2 * STAGE_LEN) / STAGE_LEN)), score >= NIGHT_AT ? 1 : 0, score >= NIGHT_AT + STAGE_LEN ? 1 : 0, score >= NIGHT_AT + 2 * STAGE_LEN ? 1 : 0, score >= NIGHT_AT + 3 * STAGE_LEN ? 1 : 0]
     };
   }
