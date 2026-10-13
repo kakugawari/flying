@@ -47,24 +47,46 @@ body {
   height: 842px;             /* 床の上まで (932 - 90) */
   background: linear-gradient(rgb(112, 197, 206), rgb(188, 230, 236));
 }
-/* 空の絵 (折り紙) 8 枚。色のグラデーションの上に、朝 → 昼 → 夕方 → 夕方から夜 → 夜 → 星空 → オーロラ → 宇宙の順に重ねる (opacity は app.js) */
+/* 空の絵 (折り紙) 8 枚。色のグラデーションの上に、朝 → 昼 → 夕方 → 夕方から夜 → 夜 → 星空 → オーロラ → 宇宙の順に重ねる (opacity は app.js)。
+   絵は全部 1544x842pt の横長。入れ物 (.sky-pan) が 430pt の窓の中をゆっくり動かす (transform だけ。軽い) */
+.sky-pan {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1544px;
+  height: 842px;
+  pointer-events: none;
+  will-change: transform;
+  visibility: hidden;                  /* 出ていないあいだは隠す (app.js が .on を付ける)。隠れた大きい絵を、遅い端末が抱えないように */
+  transition: visibility 0s linear 0.6s;   /* 隠すのは、絵が薄れきってから */
+}
+.sky-pan.on { visibility: visible; transition-delay: 0s; }
 .sky-art {
   position: absolute;
   left: 0;
   top: 0;
-  width: 430px;
+  width: 1544px;
   height: 842px;
   opacity: 0;
-  pointer-events: none;
   transition: opacity 0.6s;   /* 点数の境でぱっと替わる絵が多い。重なって見える時間 (月が二つ見える時間) を 0.6 秒にとどめる */
 }
-/* 宇宙の絵は横長 (1544pt)。430pt の窓の中を、ゆっくり行って戻る。出ているあいだだけ動かす (app.js が animation-play-state を切り替える) */
-.sky-art.sky-pan {
-  width: auto;
-  will-change: transform;
-  animation: skyPan 180s ease-in-out infinite alternate;
-  animation-play-state: paused;
-}
+/* ステージごとの動き。出た瞬間から動かし (app.js が .run を付け直す)、見せたいもの (太陽・月) が窓の中を通るように始まりと終わりを決めた。
+   動かない端で止まる (行って戻らない)。1 点あたり 1.4 秒ほどなので、15 点で 20 秒。速さは 1 秒に 8pt ほど */
+.sky-pan.run { animation-timing-function: linear; animation-fill-mode: forwards; }
+#panMorning.run { animation-name: panMorning; animation-duration: 42s; }
+#panNoon.run { animation-name: panNoon; animation-duration: 37s; }
+#panSunset.run { animation-name: panSunset; animation-duration: 44s; }
+#panNight.run { animation-name: panNight; animation-duration: 33s; }
+#panStarry.run { animation-name: panStarry; animation-duration: 41s; }
+#panAurora.run { animation-name: panAurora; animation-duration: 50s; }
+@keyframes panMorning { from { transform: translateX(-775px); } to { transform: translateX(-1114px); } }
+@keyframes panNoon { from { transform: translateX(-853px); } to { transform: translateX(-560px); } }
+@keyframes panSunset { from { transform: translateX(-150px); } to { transform: translateX(-500px); } }
+@keyframes panNight { from { transform: translateX(-900px); } to { transform: translateX(-640px); } }
+@keyframes panStarry { from { transform: translateX(-930px); } to { transform: translateX(-600px); } }
+@keyframes panAurora { from { transform: translateX(-400px); } to { transform: translateX(-800px); } }
+/* 宇宙は最後のステージで、ずっと出ている。行って戻る */
+#panSpace.run { animation: skyPan 180s ease-in-out infinite alternate; }
 @keyframes skyPan {
   from { transform: translateX(0); }
   to { transform: translateX(calc(430px - 100%)); }
